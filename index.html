@@ -324,6 +324,12 @@
             </div>
         </div>
 
+        <!-- 计算模式 -->
+        <div class="card">
+            <div class="card-title"><span>⚡</span><span>计算模式</span></div>
+            <div class="time-grid" id="modeGrid"></div>
+        </div>
+
         <!-- 月薪 -->
         <div class="card">
             <div class="card-title"><span>💵</span><span>月薪（税前）</span></div>
@@ -480,6 +486,7 @@
         if(!state.lunchDurationMin)state.lunchDurationMin=60;
         if(!state.lunchStart)state.lunchStart='12:00';
         if(!state.theme)state.theme='aurora';
+        if(!state.mode)state.mode='work';
 
         function saveState(){
             state.monthlySalary=document.getElementById('monthlySalary').value;
@@ -496,6 +503,10 @@
         function applyTheme(){document.body.className='theme-'+state.theme;document.querySelectorAll('.theme-card').forEach(c=>c.classList.toggle('active',c.dataset.theme===state.theme));}
 
         // ==================== 渲染控件 ====================
+        const MODES=[{key:'work',label:'上班才赚钱'},{key:'always',label:'天天都赚钱'}];
+        function renderModeGrid(){const grid=document.getElementById('modeGrid');grid.innerHTML=MODES.map(m=>`<button class="time-btn${state.mode===m.key?' active':''}" onclick="selectMode('${m.key}')">${m.label}</button>`).join('');}
+        function selectMode(key){state.mode=key;saveState();renderModeGrid();updateAll();}
+
         function renderStartTimeGrid(){const grid=document.getElementById('startTimeGrid');grid.innerHTML=START_OPTIONS.map(t=>`<button class="time-btn${state.startTime===t?' active':''}" onclick="selectStartTime('${t}')">${t}</button>`).join('');}
         function renderEndTimeGrid(){const grid=document.getElementById('endTimeGrid');grid.innerHTML=END_OPTIONS.map(t=>`<button class="time-btn${state.endTime===t?' active':''}" onclick="selectEndTime('${t}')">${t}</button>`).join('');}
         function renderLunchDuration(){const row=document.getElementById('lunchDurationRow');row.innerHTML=LUNCH_DURATIONS.map(opt=>`<button class="lunch-chip${state.lunchDurationMin===opt.min?' active':''}" onclick="selectLunchDuration(${opt.min})">${opt.label}</button>`).join('');}
@@ -521,6 +532,15 @@
             const workHours=getWorkHours();if(workHours<=0)return 0;
             const{hours:totalWorkHours}=calculateMonthWorkDays(checkTime.getFullYear(),checkTime.getMonth());if(totalWorkHours<=0)return 0;
             const hourlyRate=monthlySalary/totalWorkHours;
+
+            // 天天都赚钱模式：按秒率从月初开始不间断累计
+            if(state.mode==='always'){
+                const perSecond=hourlyRate/3600;
+                const elapsed=(checkTime-new Date(checkTime.getFullYear(),checkTime.getMonth(),1))/1000;
+                return perSecond*elapsed;
+            }
+
+            // 上班才赚钱模式：只在工作时段计算
             const workStart=parseTime(state.startTime),workEnd=parseTime(state.endTime);
             let lunchStartMin=0,lunchEndMin=0;if(state.lunchDurationMin>0){lunchStartMin=parseTime(state.lunchStart);lunchEndMin=lunchStartMin+state.lunchDurationMin;}
             const year=checkTime.getFullYear(),month=checkTime.getMonth(),today=checkTime.getDate();
@@ -645,6 +665,7 @@
         // ==================== 初始化 ====================
         document.getElementById('monthlySalary').value=state.monthlySalary||'';
         applyTheme();
+        renderModeGrid();
         renderStartTimeGrid();
         renderEndTimeGrid();
         renderLunchDuration();
