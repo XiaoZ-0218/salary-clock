@@ -243,6 +243,13 @@
         }
         .back-btn:hover { border-color: var(--primary); color: var(--text); }
 
+        /* 倒计时 */
+        .countdown-box { text-align: center; position: relative; z-index: 1; margin-top: 20px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+        .countdown-label { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 2px; }
+        .countdown-time { font-family: var(--font-display); font-size: 2.8rem; font-weight: 800; color: var(--primary); line-height: 1.1; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .countdown-quote { font-size: 0.9rem; color: var(--text-muted); margin-top: 14px; font-style: italic; opacity: 0.85; max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+
         /* 背景装饰 */
         .bg-decoration {
             position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
@@ -403,6 +410,12 @@
                 <span>剩余工作日 <b id="clockLeft">-</b></span>
             </div>
         </div>
+        <!-- 倒计时 + 激励语（非工作时段显示） -->
+        <div class="countdown-box hidden" id="countdownBox">
+            <div class="countdown-label">⏰ 距离上班还有</div>
+            <div class="countdown-time" id="countdownTime">--天 --:--:--</div>
+            <div class="countdown-quote" id="countdownQuote">...</div>
+        </div>
         <button class="back-btn" onclick="backToSetup()">⚙️ 设置</button>
     </div>
 
@@ -561,16 +574,113 @@
             return earned;
         }
 
-        // ==================== 时钟页面 ====================
+        // ==================== 倒计时 + 激励语 ====================
+        const QUOTES=[
+            "再睡一夏，上班在望 🛋️",
+            "你的床在挽留你，但工资在呼唤你 💰",
+            "距离财富自由还有...无数个工作日",
+            "休息是为了更好地摸鱼 🐟",
+            "每一秒的等待，都是为下一秒的工资做铺垫",
+            "倒计时结束之时，就是你变富之日",
+            "周末是上帝的，工资是你的 ⏰",
+            "躺平是为了更好地站起",
+            "今天休息得越好，明天赚钱越快",
+            "你的时间很值钱，每一秒都在靠近下一个工作日",
+            "不经历休息的无聊，怎体会赚钱的充实",
+            "坚持住，下一个工作日正在赶来",
+            "睡觉也是为上班充电 🔋",
+            "醒来后，工资在向你招手 👋",
+            "忍一时躺平，赚一世富贵",
+            "休息时间越短，上班时间越美",
+            "还在睡？你的同事已经开始卷了 👀",
+            "假期是最好的投资，因为它会带来更多工资",
+            "当前状态：等待上班，期待发财",
+            "休息是假象，赚钱是真理",
+        ];
+
+        function isInWorkTime(now){
+            if(state.mode!=='work')return true;
+            const wd=isWorkDay(now);
+            if(wd===false)return false;
+            const workStart=parseTime(state.startTime),workEnd=parseTime(state.endTime);
+            const currentMin=now.getHours()*60+now.getMinutes();
+            if(wd==='half'){
+                // 半天假简化判断：只要在上班和下班之间就算在工作
+                return currentMin>=workStart&&currentMin<workEnd;
+            }
+            return currentMin>=workStart&&currentMin<workEnd;
+        }
+
+        function getNextWorkStart(fromDate){
+            const d=new Date(fromDate);
+            const ds=formatDate(d);
+            const todayWd=isWorkDay(d);
+            const workStartMin=parseTime(state.startTime);
+            const currentMin=d.getHours()*60+d.getMinutes();
+
+            // 今天是工作日且还没到上班时间
+            if((todayWd===true||todayWd==='half')&&currentMin<workStartMin){
+                return new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(workStartMin/60),workStartMin%60,0);
+            }
+
+            // 往后找下一个工作日
+            let next=new Date(d);next.setDate(next.getDate()+1);next.setHours(0,0,0,0);
+            for(let i=0;i<60;i++){ // 最多找60天防止死循环
+                const wd=isWorkDay(next);
+                if(wd===true||wd==='half'){
+                    return new Date(next.getFullYear(),next.getMonth(),next.getDate(),Math.floor(workStartMin/60),workStartMin%60,0);
+                }
+                next.setDate(next.getDate()+1);
+            }
+            return null;
+        }
+
+        function formatCountdown(ms){
+            if(ms<=0)return"已经上班啦！🎉";
+            const days=Math.floor(ms/86400000);
+            const hours=Math.floor((ms%86400000)/3600000);
+            const mins=Math.floor((ms%3600000)/60000);
+            const secs=Math.floor((ms%60000)/1000);
+            if(days>0)return`${days}天 ${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+            return`${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        }
+
+        function getQuote(now){
+            // 每30秒切换一句
+            const idx=Math.floor(now.getTime()/30000)%QUOTES.length;
+            return QUOTES[idx];
+        }
         let clockRunning=false;
         let lastClockValue=0;
         function animateClock(){
             if(!clockRunning)return;
-            const now=new Date();const earned=getEarnedAtTime(now);
-            const el=document.getElementById('clockAmount');
-            el.textContent=formatMoney(earned);
-            if(earned>lastClockValue){el.style.opacity=1;}else{el.style.opacity=0.95;}
-            lastClockValue=earned;
+            const now=new Date();
+            const inWork=isInWorkTime(now);
+            const clockDisplay=document.querySelector('.clock-display');
+            const countdownBox=document.getElementById('countdownBox');
+
+            if(!inWork&&state.mode==='work'){
+                // 非工作时段：显示倒计时 + 激励语
+                clockDisplay.style.display='none';
+                countdownBox.classList.remove('hidden');
+                const nextStart=getNextWorkStart(now);
+                if(nextStart){
+                    const ms=nextStart-now;
+                    document.getElementById('countdownTime').textContent=formatCountdown(ms);
+                }else{
+                    document.getElementById('countdownTime').textContent="找不到下一个工作日 😅";
+                }
+                document.getElementById('countdownQuote').textContent=getQuote(now);
+            }else{
+                // 工作时段：正常显示薪水
+                clockDisplay.style.display='';
+                countdownBox.classList.add('hidden');
+                const earned=getEarnedAtTime(now);
+                const el=document.getElementById('clockAmount');
+                el.textContent=formatMoney(earned);
+                if(earned>lastClockValue){el.style.opacity=1;}else{el.style.opacity=0.95;}
+                lastClockValue=earned;
+            }
             requestAnimationFrame(animateClock);
         }
         function updateClockSub(){
