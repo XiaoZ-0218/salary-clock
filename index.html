@@ -521,7 +521,13 @@
 
         // ==================== 核心计算 ====================
         function calculateMonthWorkDays(year,month){
-            const dim=new Date(year,month+1,0).getDate();let totalDays=0,totalHours=0;
+            const dim=new Date(year,month+1,0).getDate();
+            // 天天都赚钱：工资平摊到整月每一天（不扣周末节假日）
+            if(state.mode==='always'){
+                return{days:dim,hours:dim*getWorkHours()};
+            }
+            // 上班才赚钱：只算工作日
+            let totalDays=0,totalHours=0;
             for(let d=1;d<=dim;d++){const date=new Date(year,month,d);const wd=isWorkDay(date);if(wd===true){totalDays++;totalHours+=getWorkHours();}else if(wd==='half'){totalDays+=0.5;totalHours+=getWorkHours()*0.5;}}
             return{days:totalDays,hours:totalHours};
         }
