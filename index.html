@@ -79,17 +79,46 @@
         body.theme-mono {
             --bg: #000000;
             --bg-gradient: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
-            --card: rgba(255,255,255,0.03);
-            --card-border: rgba(255,255,255,0.08);
-            --text: #ffffff;
-            --text-muted: #888888;
+            --card: rgba(255,255,255,0.06);
+            --card-border: rgba(255,255,255,0.14);
+            --text: #f5f5f5;
+            --text-muted: #737373;
             --primary: #ffffff;
-            --primary-light: #cccccc;
-            --accent: #888888;
-            --shadow: rgba(255,255,255,0.05);
+            --primary-light: #d4d4d4;
+            --accent: #a3a3a3;
+            --shadow: rgba(255,255,255,0.08);
             --font-display: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', sans-serif;
             --font-body: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', sans-serif;
         }
+
+        /* 极简黑白主题覆盖 */
+        body.theme-mono .time-btn.active,
+        body.theme-mono .lunch-chip.active,
+        body.theme-mono .enter-btn {
+            background: #ffffff !important; color: #000000 !important;
+            border-color: #ffffff !important; box-shadow: none !important;
+        }
+        body.theme-mono .time-btn:hover,
+        body.theme-mono .lunch-chip:hover {
+            border-color: #ffffff;
+        }
+        body.theme-mono .theme-card.active {
+            border-color: #ffffff; box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+        }
+        body.theme-mono .day.holiday { background: rgba(255,255,255,0.12); color: #ffffff; }
+        body.theme-mono .day.workday-custom { background: rgba(255,255,255,0.18); color: #ffffff; border-color: rgba(255,255,255,0.3); }
+        body.theme-mono .day.workday-official { background: rgba(255,255,255,0.1); color: #e5e5e5; }
+        body.theme-mono .day.company-full { background: rgba(255,255,255,0.08); color: #d4d4d4; }
+        body.theme-mono .day.personal-full { background: rgba(255,255,255,0.06); color: #a3a3a3; }
+        body.theme-mono .day.personal-am::after,
+        body.theme-mono .day.personal-pm::after { background: #a3a3a3; }
+        body.theme-mono .day.today { border-color: #ffffff; }
+        body.theme-mono .countdown-time { color: #ffffff; }
+        body.theme-mono .tag-company { background: rgba(255,255,255,0.12); color: #d4d4d4; }
+        body.theme-mono .tag-personal { background: rgba(255,255,255,0.1); color: #a3a3a3; }
+        body.theme-mono .tag-holiday { background: rgba(255,255,255,0.12); color: #ffffff; }
+        body.theme-mono .tag-work { background: rgba(255,255,255,0.18); color: #ffffff; }
+        body.theme-mono .holiday-chip { background: rgba(255,255,255,0.1); color: #d4d4d4; }
 
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
@@ -300,6 +329,11 @@
         .holiday-chip { font-size: 0.72rem; padding: 4px 10px; background: rgba(234,179,8,0.15); color: #fcd34d; border-radius: 20px; font-weight: 500; }
 
         .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 10px; }
+        .month-stats { font-size: 0.85rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
+        .month-stats b { color: var(--text); font-weight: 700; }
+
+        body { overflow-x: hidden; }
+        #clockView { overflow: hidden; }
 
         @media (max-width: 480px) {
             .clock-amount { font-size: 3.2rem; }
@@ -389,12 +423,9 @@
             </div>
             <div class="hint">💡 点击<strong>工作日</strong>选择休假，点击<strong>休息日</strong>标记"今天要上班😭"
             </div>
-        </div>
-
-        <!-- 节假日 -->
-        <div class="card">
-            <div class="card-title"><span>🏖️</span><span>本月法定节假日</span></div>
-            <div class="holiday-list" id="holidayList"></div>
+            <div class="month-stats">
+                <span>🛋️ 本月休息天数：<b id="restDaysCount">-</b> 天</span>
+            </div>
         </div>
 
         <button class="enter-btn" id="enterBtn" onclick="enterClock()">进入时钟 ⏵</button>
@@ -744,9 +775,12 @@
                 else { classes.push('workday'); }
                 html+=`<div class="${classes.join(' ')}" onclick="openDayModal(${d})" data-date="${ds}"><span class="day-text">${d}</span>${typeLabel?`<span class="day-type">${typeLabel}</span>`:''}</div>`;
             }
-            grid.innerHTML=html;renderHolidayList();updateAll();
+            grid.innerHTML=html;updateAll();updateRestDays();}
+        function updateRestDays(){
+            const dim=new Date(currentYear,currentMonth+1,0).getDate();let restCount=0;
+            for(let d=1;d<=dim;d++){if(isRestDay(new Date(currentYear,currentMonth,d)))restCount++;}
+            document.getElementById('restDaysCount').textContent=restCount;
         }
-        function renderHolidayList(){const list=document.getElementById('holidayList');const holidays=[];const all={...HOLIDAYS_2024,...HOLIDAYS_2025};for(const[ds,info]of Object.entries(all)){const[y,m,d]=ds.split('-').map(Number);if(y===currentYear&&m===currentMonth+1)holidays.push(`${m}月${d}日 ${info.name}`);}list.innerHTML=holidays.length?holidays.map(h=>`<span class="holiday-chip">${h}</span>`).join(''):'<span style="color:var(--text-muted);font-size:0.72rem">本月无法定节假日</span>';}
         function changeMonth(delta){currentMonth+=delta;if(currentMonth>11){currentMonth=0;currentYear++;}else if(currentMonth<0){currentMonth=11;currentYear--;}renderCalendar();}
 
         // ==================== 模态框（核心交互逻辑）====================
