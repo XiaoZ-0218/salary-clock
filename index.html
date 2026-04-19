@@ -408,7 +408,7 @@
             <div class="clock-sub">
                 <span>日薪 <b id="clockDaily">-</b></span>
                 <span>时薪 <b id="clockHourly">-</b></span>
-                <span>剩余工作日 <b id="clockLeft">-</b></span>
+                <span><span id="clockLeftLabel">剩余工作日</span> <b id="clockLeft">-</b></span>
             </div>
         </div>
         <!-- 倒计时 + 激励语（非工作时段显示） -->
@@ -697,9 +697,18 @@
                 const hourlyRate=monthlySalary/totalWorkHours;
                 document.getElementById('clockDaily').textContent=formatMoneyShort(hourlyRate*workHours);
                 document.getElementById('clockHourly').textContent=formatMoneyShort(hourlyRate);
-                const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();let remaining=0;
-                for(let d=now.getDate();d<=dim;d++){const date=new Date(now.getFullYear(),now.getMonth(),d);const wd=isWorkDay(date);if(wd===true)remaining++;else if(wd==='half')remaining+=0.5;}
-                document.getElementById('clockLeft').textContent=remaining;
+                const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+                if(state.mode==='always'){
+                    // 随时都赚钱：显示本月剩余天数
+                    document.getElementById('clockLeftLabel').textContent='本月剩余天数';
+                    document.getElementById('clockLeft').textContent=dim-now.getDate()+1;
+                }else{
+                    // 上班才赚钱：显示剩余工作日
+                    let remaining=0;
+                    for(let d=now.getDate();d<=dim;d++){const date=new Date(now.getFullYear(),now.getMonth(),d);const wd=isWorkDay(date);if(wd===true)remaining++;else if(wd==='half')remaining+=0.5;}
+                    document.getElementById('clockLeftLabel').textContent='剩余工作日';
+                    document.getElementById('clockLeft').textContent=remaining;
+                }
             }else{document.getElementById('clockDaily').textContent='-';document.getElementById('clockHourly').textContent='-';document.getElementById('clockLeft').textContent='-';}
         }
         function enterClock(){saveState();document.getElementById('setupView').classList.add('hidden');document.getElementById('clockView').classList.remove('hidden');clockRunning=true;updateClockSub();animateClock();}
