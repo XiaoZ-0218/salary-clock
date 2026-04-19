@@ -503,7 +503,7 @@
         function applyTheme(){document.body.className='theme-'+state.theme;document.querySelectorAll('.theme-card').forEach(c=>c.classList.toggle('active',c.dataset.theme===state.theme));}
 
         // ==================== 渲染控件 ====================
-        const MODES=[{key:'work',label:'上班才赚钱'},{key:'always',label:'天天都赚钱'}];
+        const MODES=[{key:'work',label:'上班才赚钱'},{key:'always',label:'随时都赚钱'}];
         function renderModeGrid(){const grid=document.getElementById('modeGrid');grid.innerHTML=MODES.map(m=>`<button class="time-btn${state.mode===m.key?' active':''}" onclick="selectMode('${m.key}')">${m.label}</button>`).join('');}
         function selectMode(key){state.mode=key;saveState();renderModeGrid();updateAll();}
 
@@ -539,9 +539,11 @@
             const{hours:totalWorkHours}=calculateMonthWorkDays(checkTime.getFullYear(),checkTime.getMonth());if(totalWorkHours<=0)return 0;
             const hourlyRate=monthlySalary/totalWorkHours;
 
-            // 天天都赚钱模式：按秒率从月初开始不间断累计
+            // 随时都赚钱：月薪平摊到整月每一秒（24h×天数），睡觉也在赚
             if(state.mode==='always'){
-                const perSecond=hourlyRate/3600;
+                const dim=new Date(checkTime.getFullYear(),checkTime.getMonth()+1,0).getDate();
+                const totalSeconds=dim*24*3600;
+                const perSecond=monthlySalary/totalSeconds;
                 const elapsed=(checkTime-new Date(checkTime.getFullYear(),checkTime.getMonth(),1))/1000;
                 return perSecond*elapsed;
             }
