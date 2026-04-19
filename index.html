@@ -189,18 +189,18 @@
         .day .day-type { font-size: 0.45rem; margin-top: 1px; font-weight: 600; opacity: 0.85; }
 
         /* 日历颜色区分 */
-        .day.holiday { background: rgba(34,211,238,0.2); color: #67e8f9; }           /* 法定节假日 青色 */
+        .day.holiday { background: rgba(6,182,212,0.2); color: #06b6d4; }           /* 法定节假日 青色 */
         .day.weekend { /* 无色 */ }
         .day.workday { border-color: var(--card-border); }
-        .day.workday-custom { background: rgba(239,68,68,0.2); color: #fca5a5; }     /* 手动上班 红色 */
-        .day.workday-official { background: rgba(234,179,8,0.25); color: #fcd34d; }  /* 法定调休 黄色 */
-        .day.company-full { background: rgba(34,197,94,0.2); color: #86efac; }       /* 公司休假 绿色 */
-        .day.personal-full { background: rgba(59,130,246,0.25); color: #93c5fd; }    /* 个人休假 蓝色 */
+        .day.workday-custom { background: rgba(239,68,68,0.25); color: #ef4444; }     /* 手动上班 红色 */
+        .day.workday-official { background: rgba(234,179,8,0.3); color: #eab308; }     /* 法定调休 黄色 */
+        .day.company-full { background: rgba(34,197,94,0.25); color: #22c55e; }       /* 公司休假 绿色 */
+        .day.personal-full { background: rgba(59,130,246,0.3); color: #3b82f6; }      /* 个人休假 蓝色 */
         .day.personal-am::after, .day.personal-pm::after {
             content: ''; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%;
         }
-        .day.personal-am::after { left: 3px; background: #60a5fa; }
-        .day.personal-pm::after { right: 3px; background: #60a5fa; }
+        .day.personal-am::after { left: 3px; background: #3b82f6; }
+        .day.personal-pm::after { right: 3px; background: #3b82f6; }
 
         .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--card-border); }
         .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--text-muted); }
