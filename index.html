@@ -495,10 +495,15 @@
         const LUNCH_START_OPTIONS=['11:00','11:30','12:00','12:30','13:00'];
 
         let state=JSON.parse(localStorage.getItem('salaryClockState')||'{}');
-        if(!state.startTime)state.startTime='09:00';
-        if(!state.endTime)state.endTime='18:00';
-        if(!state.lunchDurationMin)state.lunchDurationMin=60;
-        if(!state.lunchStart)state.lunchStart='12:00';
+        // 版本迁移：新默认值 10:00/18:30/2h/12:00
+        if(!state.version||state.version<2){
+            state.startTime='10:00';
+            state.endTime='18:30';
+            state.lunchDurationMin=120;
+            state.lunchStart='12:00';
+            state.version=2;
+            localStorage.setItem('salaryClockState',JSON.stringify(state));
+        }
         if(!state.theme)state.theme='aurora';
         if(!state.mode)state.mode='work';
 
