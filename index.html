@@ -189,17 +189,18 @@
         .day .day-type { font-size: 0.45rem; margin-top: 1px; font-weight: 600; opacity: 0.85; }
 
         /* 日历颜色区分 */
-        .day.holiday { background: rgba(234,179,8,0.25); color: #fcd34d; }
-        .day.weekend { color: var(--text-muted); background: rgba(255,255,255,0.03); }
+        .day.holiday { background: rgba(34,211,238,0.2); color: #67e8f9; }           /* 法定节假日 青色 */
+        .day.weekend { /* 无色 */ }
         .day.workday { border-color: var(--card-border); }
-        .day.workday-override { background: rgba(34,197,94,0.2); color: #86efac; }
-        .day.company-full { background: rgba(59,130,246,0.25); color: #93c5fd; }
-        .day.personal-full { background: rgba(236,72,153,0.25); color: #f9a8d4; }
+        .day.workday-custom { background: rgba(239,68,68,0.2); color: #fca5a5; }     /* 手动上班 红色 */
+        .day.workday-official { background: rgba(234,179,8,0.25); color: #fcd34d; }  /* 法定调休 黄色 */
+        .day.company-full { background: rgba(34,197,94,0.2); color: #86efac; }       /* 公司休假 绿色 */
+        .day.personal-full { background: rgba(59,130,246,0.25); color: #93c5fd; }    /* 个人休假 蓝色 */
         .day.personal-am::after, .day.personal-pm::after {
             content: ''; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%;
         }
-        .day.personal-am::after { left: 3px; background: #f472b6; }
-        .day.personal-pm::after { right: 3px; background: #f472b6; }
+        .day.personal-am::after { left: 3px; background: #60a5fa; }
+        .day.personal-pm::after { right: 3px; background: #60a5fa; }
 
         .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--card-border); }
         .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--text-muted); }
@@ -363,11 +364,11 @@
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
             <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:rgba(234,179,8,0.5)"></div>法定节假日</div>
-                <div class="legend-item"><div class="legend-dot" style="background:rgba(148,163,184,0.3)"></div>周末休息</div>
-                <div class="legend-item"><div class="legend-dot" style="background:rgba(34,197,94,0.3)"></div>调休上班</div>
-                <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.5)"></div>公司休假</div>
-                <div class="legend-item"><div class="legend-dot" style="background:rgba(236,72,153,0.5)"></div>个人休假</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(34,211,238,0.5)"></div>法定节假日</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(234,179,8,0.5)"></div>法定调休</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(34,197,94,0.5)"></div>公司休假</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.5)"></div>个人休假</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.5)"></div>手动上班</div>
                 <div class="legend-item"><div class="legend-dot" style="background:var(--card-border)"></div>工作日</div>
             </div>
             <div class="hint">💡 点击<strong>工作日</strong>选择休假，点击<strong>休息日</strong>标记"今天要上班😭"
@@ -579,9 +580,9 @@
                     else if(st.type==='personal-full'){classes.push('personal-full');typeLabel='个休';}
                     else if(st.type==='personal-am'){classes.push('personal-am');typeLabel='个休';}
                     else if(st.type==='personal-pm'){classes.push('personal-pm');typeLabel='个休';}
-                    else if(st.type==='work'){classes.push('workday-override');typeLabel='班';}
+                    else if(st.type==='work'){classes.push('workday-custom');typeLabel='班';}
                 }else if(hol){classes.push('holiday');typeLabel=hol.name.substring(0,2);}
-                else if(wk){classes.push('workday-override');typeLabel='班';}
+                else if(wk){classes.push('workday-official');typeLabel='班';}
                 else if(dow===0||dow===6){classes.push('weekend');}
                 else { classes.push('workday'); }
                 html+=`<div class="${classes.join(' ')}" onclick="openDayModal(${d})" data-date="${ds}"><span class="day-text">${d}</span>${typeLabel?`<span class="day-type">${typeLabel}</span>`:''}</div>`;
