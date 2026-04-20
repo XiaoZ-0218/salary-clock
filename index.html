@@ -10,8 +10,8 @@
         :root {
             --bg: #0f0c29;
             --bg-gradient: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-            --card: rgba(255,255,255,0.06);
-            --card-border: rgba(255,255,255,0.1);
+            --card: rgba(255,255,255,0.08);
+            --card-border: rgba(255,255,255,0.14);
             --text: #f1f5f9;
             --text-muted: #94a3b8;
             --primary: #a855f7;
@@ -37,42 +37,42 @@
         body.theme-cyber {
             --bg: #050505;
             --bg-gradient: radial-gradient(ellipse at top, #1a0a1a 0%, #050505 60%);
-            --card: rgba(0,255,157,0.04);
-            --card-border: rgba(0,255,157,0.15);
+            --card: rgba(0,255,157,0.08);
+            --card-border: rgba(0,255,157,0.22);
             --text: #e8e8e8;
-            --text-muted: #6b7280;
+            --text-muted: #9ca3af;
             --primary: #00ff9d;
             --primary-light: #00ff9d;
             --accent: #ff00ff;
-            --shadow: rgba(0,255,157,0.15);
+            --shadow: rgba(0,255,157,0.1);
             --font-display: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Courier New', monospace;
             --font-body: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Courier New', monospace;
         }
         body.theme-warm {
             --bg: #faf7f2;
             --bg-gradient: linear-gradient(180deg, #faf7f2 0%, #f5efe6 100%);
-            --card: rgba(255,255,255,0.8);
-            --card-border: rgba(217,119,6,0.15);
+            --card: rgba(255,255,255,0.92);
+            --card-border: rgba(217,119,6,0.22);
             --text: #292524;
-            --text-muted: #a8a29e;
+            --text-muted: #78716c;
             --primary: #d97706;
             --primary-light: #f59e0b;
             --accent: #ea580c;
-            --shadow: rgba(217,119,6,0.1);
+            --shadow: rgba(217,119,6,0.08);
             --font-display: 'Songti SC', 'STSong', 'SimSun', 'Noto Serif SC', serif;
             --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
         }
         body.theme-ocean {
             --bg: #0c1929;
             --bg-gradient: linear-gradient(180deg, #0c1929 0%, #0f3460 50%, #16213e 100%);
-            --card: rgba(56,189,248,0.06);
-            --card-border: rgba(56,189,248,0.12);
+            --card: rgba(56,189,248,0.1);
+            --card-border: rgba(56,189,248,0.2);
             --text: #f0f9ff;
-            --text-muted: #7dd3fc;
+            --text-muted: #60a5fa;
             --primary: #38bdf8;
             --primary-light: #7dd3fc;
             --accent: #22d3ee;
-            --shadow: rgba(56,189,248,0.15);
+            --shadow: rgba(56,189,248,0.12);
             --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
             --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
         }
@@ -119,6 +119,38 @@
         body.theme-mono .tag-holiday { background: rgba(255,255,255,0.12); color: #ffffff; }
         body.theme-mono .tag-work { background: rgba(255,255,255,0.18); color: #ffffff; }
         body.theme-mono .holiday-chip { background: rgba(255,255,255,0.1); color: #d4d4d4; }
+
+        /* 赛博霓虹主题覆盖 */
+        body.theme-cyber .time-btn.active,
+        body.theme-cyber .lunch-chip.active,
+        body.theme-cyber .enter-btn {
+            color: #000000 !important;
+        }
+
+        /* 暖日米黄主题覆盖 */
+        body.theme-warm .time-btn.active,
+        body.theme-warm .lunch-chip.active,
+        body.theme-warm .enter-btn {
+            color: #000000 !important;
+        }
+        body.theme-warm .day.holiday { background: rgba(234,179,8,0.18); color: #b45309; }
+        body.theme-warm .day.workday-custom { background: rgba(239,68,68,0.12); color: #dc2626; }
+        body.theme-warm .day.workday-official { background: rgba(249,115,22,0.15); color: #c2410c; }
+        body.theme-warm .day.company-full { background: rgba(34,197,94,0.12); color: #15803d; }
+        body.theme-warm .day.personal-full { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+        body.theme-warm .day.personal-am::after,
+        body.theme-warm .day.personal-pm::after { background: #1d4ed8; }
+        body.theme-warm .tag-company { background: rgba(34,197,94,0.15); color: #15803d; }
+        body.theme-warm .tag-personal { background: rgba(59,130,246,0.15); color: #1d4ed8; }
+        body.theme-warm .tag-holiday { background: rgba(234,179,8,0.18); color: #b45309; }
+        body.theme-warm .tag-work { background: rgba(239,68,68,0.15); color: #dc2626; }
+
+        /* 深海蓝主题覆盖 */
+        body.theme-ocean .time-btn.active,
+        body.theme-ocean .lunch-chip.active,
+        body.theme-ocean .enter-btn {
+            color: #000000 !important;
+        }
 
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
