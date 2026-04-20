@@ -8,13 +8,13 @@
     <meta name="apple-mobile-web-app-title" content="哄我上班">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#101422">
-    <link rel="manifest" href="site.webmanifest?v=20260420">
-    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png?v=20260420">
-    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="img/apple-touch-icon.png?v=20260420">
+    <link rel="manifest" href="site.webmanifest?v=20260420-fullscreen">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png?v=20260420-fullscreen">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="img/apple-touch-icon.png?v=20260420-fullscreen">
     <title>哄我上班 😽</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=20260420">
-    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png?v=20260420">
-    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png?v=20260420">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=20260420-fullscreen">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png?v=20260420-fullscreen">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png?v=20260420-fullscreen">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -61,7 +61,7 @@
             --work-bg: rgba(248,113,113,0.22);
             --work-text: #fca5a5;
             --app-height: 100dvh;
-            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-bottom: 0px;
         }
 
         body {
@@ -326,7 +326,7 @@
         #setupView {
             width: 100%; max-width: 680px; height: 100vh; height: var(--app-height); margin: 0 auto; padding: 20px;
             padding-top: max(20px, env(safe-area-inset-top));
-            padding-bottom: calc(16px + var(--safe-bottom));
+            padding-bottom: 20px;
             overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch; position: relative; z-index: 1;
         }
@@ -334,7 +334,7 @@
             width: 100%; height: 100vh; height: var(--app-height); min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; justify-content: center; position: relative; padding: 24px;
             padding-top: max(24px, env(safe-area-inset-top));
-            padding-bottom: calc(24px + var(--safe-bottom));
+            padding-bottom: 24px;
             overflow: hidden; overscroll-behavior: none; isolation: isolate;
         }
 
@@ -633,7 +633,7 @@
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none;
             align-items: center; justify-content: center; z-index: 100; padding: 20px;
-            padding-bottom: calc(20px + var(--safe-bottom)); backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
         }
         .modal-overlay.active { display: flex; }
         .modal {
@@ -858,10 +858,6 @@
             }
         }
 
-        @supports (padding-bottom: constant(safe-area-inset-bottom)) {
-            :root { --safe-bottom: constant(safe-area-inset-bottom); }
-        }
-
         .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 10px; }
         .month-stats { font-size: 0.85rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
         .month-stats b { color: var(--text); font-weight: 700; }
@@ -1055,13 +1051,6 @@
         function formatMoneyShort(n){return'¥'+n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});}
         function parseTime(ts){const[h,m]=ts.split(':').map(Number);return h*60+m;}
         function addMinutes(ts,min){const total=parseTime(ts)+min;const h=Math.floor(total/60),m=total%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
-
-        function syncViewportHeight(){
-            const height=Math.round(window.innerHeight||document.documentElement.clientHeight||0);
-            if(height>0)document.documentElement.style.setProperty('--app-height',height+'px');
-        }
-        window.addEventListener('resize',syncViewportHeight,{passive:true});
-        window.addEventListener('orientationchange',()=>setTimeout(syncViewportHeight,120),{passive:true});
 
         // ==================== 时间选项 ====================
         const START_OPTIONS=['09:00','09:30','10:00','10:30','11:00'];
@@ -1421,7 +1410,6 @@
         document.getElementById('monthlySalary').addEventListener('input',saveState);
 
         // ==================== 初始化 ====================
-        syncViewportHeight();
         document.getElementById('monthlySalary').value=state.monthlySalary||'';
         applyTheme();
         renderModeGrid();
