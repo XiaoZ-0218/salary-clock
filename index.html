@@ -778,8 +778,19 @@
             grid.innerHTML=html;updateAll();updateRestDays();}
         function updateRestDays(){
             const dim=new Date(currentYear,currentMonth+1,0).getDate();let restCount=0;
-            for(let d=1;d<=dim;d++){if(isRestDay(new Date(currentYear,currentMonth,d)))restCount++;}
-            document.getElementById('restDaysCount').textContent=restCount;
+            for(let d=1;d<=dim;d++){
+                const date=new Date(currentYear,currentMonth,d);
+                const ds=formatDate(date);
+                const st=getStatus(ds);
+                if(st&&(st.type==='personal-am'||st.type==='personal-pm')){
+                    restCount+=0.5;
+                }else if(isRestDay(date)){
+                    restCount+=1;
+                }
+            }
+            // 有半天假时显示小数，否则整数
+            const hasHalf=restCount%1!==0;
+            document.getElementById('restDaysCount').textContent=hasHalf?restCount.toFixed(1):Math.round(restCount);
         }
         function changeMonth(delta){currentMonth+=delta;if(currentMonth>11){currentMonth=0;currentYear++;}else if(currentMonth<0){currentMonth=11;currentYear--;}renderCalendar();}
 
