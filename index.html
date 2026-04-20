@@ -6,11 +6,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="哄我上班">
-    <link rel="apple-touch-icon" href="img/logo.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#101422">
+    <link rel="manifest" href="site.webmanifest?v=20260420">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png?v=20260420">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="img/apple-touch-icon.png?v=20260420">
     <title>哄我上班 😽</title>
-    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=20260420">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png?v=20260420">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png?v=20260420">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            width: 100%;
+            height: 100%;
+            background: var(--bg, #101422);
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
 
         :root {
             --bg: #101422;
@@ -51,12 +65,19 @@
             font-family: var(--font-body);
             background: var(--bg-gradient);
             color: var(--text);
+            width: 100%;
+            height: 100%;
             min-height: 100vh;
+            min-height: 100dvh;
             transition: background 0.5s ease;
-            overflow-x: hidden;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-y;
         }
 
         /* ========== 主题 ========== */
+        html.theme-cyber,
         body.theme-cyber {
             --bg: #030507;
             --bg-gradient: linear-gradient(90deg, rgba(0,255,157,0.07) 1px, transparent 1px), linear-gradient(180deg, #030507 0%, #08110f 52%, #120617 100%);
@@ -90,6 +111,7 @@
             --work-bg: rgba(255,77,109,0.18);
             --work-text: #ff8fa3;
         }
+        html.theme-warm,
         body.theme-warm {
             --bg: #fff7fb;
             --bg-gradient: linear-gradient(135deg, #fff7fb 0%, #ffe4ef 38%, #d8fff3 100%);
@@ -121,6 +143,7 @@
             --work-bg: rgba(225,29,72,0.14);
             --work-text: #be123c;
         }
+        html.theme-ocean,
         body.theme-ocean {
             --bg: #061923;
             --bg-gradient: linear-gradient(180deg, #061923 0%, #083344 44%, #062d35 100%);
@@ -152,6 +175,7 @@
             --work-bg: rgba(251,113,133,0.18);
             --work-text: #fda4af;
         }
+        html.theme-mono,
         body.theme-mono {
             --bg: #f7f7f2;
             --bg-gradient: linear-gradient(180deg, #f7f7f2 0%, #e7e5dc 100%);
@@ -185,6 +209,7 @@
             --work-bg: rgba(225,29,72,0.14);
             --work-text: #be123c;
         }
+        html.theme-forest,
         body.theme-forest {
             --bg: #eafff6;
             --bg-gradient: linear-gradient(160deg, #eafff6 0%, #b7f4dc 42%, #173f35 100%);
@@ -216,6 +241,7 @@
             --work-bg: rgba(220,38,38,0.12);
             --work-text: #b91c1c;
         }
+        html.theme-ledger,
         body.theme-ledger {
             --bg: #080a0d;
             --bg-gradient: linear-gradient(135deg, #080a0d 0%, #15181e 55%, #071611 100%);
@@ -247,6 +273,7 @@
             --work-bg: rgba(244,63,94,0.16);
             --work-text: #fda4af;
         }
+        html.theme-arcade,
         body.theme-arcade {
             --bg: #121019;
             --bg-gradient: linear-gradient(135deg, #121019 0%, #30115e 38%, #042f2e 100%);
@@ -290,11 +317,19 @@
 
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
-        #setupView { max-width: 680px; margin: 0 auto; padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); min-height: 100vh; }
+        #setupView {
+            width: 100%; max-width: 680px; height: 100vh; height: 100dvh; margin: 0 auto; padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(40px, env(safe-area-inset-bottom));
+            overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch; position: relative; z-index: 1;
+        }
         #clockView {
-            min-height: 100vh; display: flex; flex-direction: column;
+            width: 100%; height: 100vh; height: 100dvh; min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; justify-content: center; position: relative; padding: 24px;
-            padding-top: max(24px, env(safe-area-inset-top)); isolation: isolate;
+            padding-top: max(24px, env(safe-area-inset-top));
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            overflow: hidden; overscroll-behavior: none; isolation: isolate;
         }
 
         /* ========== 标题 ========== */
@@ -313,16 +348,62 @@
             cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 4px; transition: all 0.2s; position: relative; overflow: hidden;
         }
+        .theme-card::before {
+            content: ''; position: absolute; inset: -45%; pointer-events: none; opacity: 0.55;
+            background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.46) 48%, transparent 64%);
+            transform: translateX(-48%) rotate(10deg); animation: swatchShine 4.8s ease-in-out infinite;
+        }
+        .theme-card[data-theme="cyber"]::before {
+            inset: 0; opacity: 0.46; transform: none;
+            background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(0,255,157,0.50) 6px, transparent 7px);
+            animation: swatchScan 1.4s linear infinite;
+        }
+        .theme-card[data-theme="warm"]::before {
+            inset: -20%; opacity: 0.42; transform: none;
+            background: repeating-linear-gradient(135deg, rgba(225,29,72,0.20) 0 8px, transparent 8px 18px, rgba(20,184,166,0.18) 18px 26px, transparent 26px 38px);
+            animation: swatchDrift 5.8s linear infinite;
+        }
+        .theme-card[data-theme="ocean"]::before {
+            inset: -25%; opacity: 0.48; transform: none;
+            background: repeating-radial-gradient(circle at 50% 50%, transparent 0 16px, rgba(103,232,249,0.55) 17px 18px, transparent 19px 34px);
+            animation: swatchRipple 4.8s ease-out infinite;
+        }
+        .theme-card[data-theme="mono"]::before {
+            inset: 0; opacity: 0.52; transform: none;
+            background: linear-gradient(90deg, transparent 0 47%, rgba(17,17,17,0.34) 47% 52%, transparent 52% 100%);
+            animation: swatchSlide 4s ease-in-out infinite alternate;
+        }
+        .theme-card[data-theme="forest"]::before {
+            inset: -20%; opacity: 0.36; transform: skewX(-18deg);
+            background: linear-gradient(90deg, transparent, rgba(234,255,246,0.58), transparent);
+            animation: swatchMist 5.6s ease-in-out infinite alternate;
+        }
+        .theme-card[data-theme="ledger"]::before {
+            inset: 0; opacity: 0.38; transform: none;
+            background: repeating-linear-gradient(90deg, transparent 0 18px, rgba(250,204,21,0.56) 19px 20px), repeating-linear-gradient(0deg, transparent 0 12px, rgba(255,255,255,0.22) 13px 14px);
+            animation: swatchLedger 5.2s linear infinite;
+        }
+        .theme-card[data-theme="arcade"]::before {
+            inset: 0; opacity: 0.52; transform: none; image-rendering: pixelated;
+            background: linear-gradient(90deg, rgba(245,158,11,0.8) 6px, transparent 6px), linear-gradient(90deg, rgba(34,211,238,0.72) 6px, transparent 6px);
+            background-size: 38px 6px, 52px 6px; background-position: 0 24%, 16px 68%; background-repeat: repeat-x;
+            animation: swatchPixels 2.8s steps(6,end) infinite;
+        }
         .theme-card:hover { transform: scale(1.05); }
         .theme-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--shadow); }
         .theme-card.active::after {
             content: ''; position: absolute; inset: 4px; border: 1px solid rgba(255,255,255,0.45);
             border-radius: max(0px, calc(var(--radius-sm) - 2px)); pointer-events: none;
         }
-        .theme-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--theme-dot); box-shadow: var(--theme-dot-shadow, none); }
+        .theme-dot {
+            width: 24px; height: 24px; border-radius: 50%; background: var(--theme-dot);
+            box-shadow: var(--theme-dot-shadow, none); position: relative; z-index: 1;
+            animation: themeDotPulse 3.8s ease-in-out infinite;
+        }
         .theme-name {
             max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-            font-size: 0.58rem; line-height: 1.1; font-weight: 700; color: var(--theme-name-color, #ffffff); white-space: nowrap;
+            font-size: 0.58rem; line-height: 1.1; font-weight: 700; color: var(--theme-name-color, #ffffff);
+            white-space: nowrap; position: relative; z-index: 1;
         }
 
         /* ========== 卡片 ========== */
@@ -471,8 +552,74 @@
 
         /* 背景装饰 */
         .bg-decoration {
-            position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+            position: fixed; inset: -80px; pointer-events: none; z-index: 0; overflow: hidden;
             background: var(--decor); background-size: var(--decor-size); opacity: var(--decor-opacity);
+            transform: translateZ(0);
+        }
+        .bg-decoration::before,
+        .bg-decoration::after {
+            content: ''; position: absolute; pointer-events: none;
+        }
+        body.theme-aurora .bg-decoration { animation: auroraDecorDrift 18s ease-in-out infinite alternate; }
+        body.theme-aurora .bg-decoration::before {
+            inset: -12% -18%; opacity: 0.55;
+            background: linear-gradient(118deg, transparent 12%, rgba(117,240,207,0.18) 30%, transparent 47%, rgba(255,122,182,0.16) 66%, transparent 84%);
+            filter: blur(16px); transform: skewY(-8deg); animation: auroraBgSweep 13s ease-in-out infinite alternate;
+        }
+        body.theme-cyber .bg-decoration { animation: cyberGridDrift 7s linear infinite; }
+        body.theme-cyber .bg-decoration::before {
+            inset: 0; opacity: 0.34;
+            background: repeating-linear-gradient(0deg, transparent 0 8px, rgba(0,255,157,0.16) 9px, transparent 10px);
+            animation: scanlines 1.45s linear infinite;
+        }
+        body.theme-cyber .bg-decoration::after {
+            top: -10%; bottom: -10%; width: 18%; left: -26%; opacity: 0.42;
+            background: linear-gradient(90deg, transparent, rgba(0,255,157,0.20), rgba(255,43,214,0.18), transparent);
+            filter: blur(8px); transform: skewX(-18deg); animation: cyberSweepWide 6.5s linear infinite;
+        }
+        body.theme-warm .bg-decoration { animation: warmPatternDrift 12s linear infinite; }
+        body.theme-warm .bg-decoration::before {
+            inset: -16%; opacity: 0.38;
+            background: repeating-linear-gradient(135deg, rgba(225,29,72,0.12) 0 14px, transparent 14px 34px, rgba(20,184,166,0.11) 34px 48px, transparent 48px 70px);
+            animation: warmRibbon 16s linear infinite;
+        }
+        body.theme-ocean .bg-decoration { animation: oceanCurrent 14s ease-in-out infinite alternate; }
+        body.theme-ocean .bg-decoration::before {
+            width: 120vmax; height: 120vmax; left: 50%; top: 50%; opacity: 0.36; border-radius: 50%;
+            background: repeating-radial-gradient(circle, transparent 0 72px, rgba(103,232,249,0.18) 73px 75px, transparent 76px 144px);
+            transform: translate(-50%,-50%) scale(0.92); animation: oceanRippleBg 10s ease-out infinite;
+        }
+        body.theme-mono .bg-decoration { animation: monoPaperShift 9s ease-in-out infinite alternate; }
+        body.theme-mono .bg-decoration::before {
+            inset: 8% 12%; opacity: 0.46;
+            background: linear-gradient(90deg, transparent 0 48%, rgba(17,17,17,0.22) 48% 52%, transparent 52% 100%);
+            animation: editorialSlide 10s ease-in-out infinite alternate;
+        }
+        body.theme-forest .bg-decoration { animation: forestBreath 12s ease-in-out infinite alternate; }
+        body.theme-forest .bg-decoration::before {
+            inset: -18% auto -18% 4%; width: 24%; opacity: 0.52;
+            background: linear-gradient(90deg, transparent, rgba(234,255,246,0.45), transparent);
+            filter: blur(14px); transform: skewX(-16deg); animation: forestLightSweep 9s ease-in-out infinite alternate;
+        }
+        body.theme-forest .bg-decoration::after {
+            left: 8%; right: 8%; top: 30%; height: 1px; opacity: 0.42;
+            background: linear-gradient(90deg, transparent, rgba(15,118,110,0.34), transparent);
+            box-shadow: 18vw 22vh 0 rgba(15,118,110,0.20), -10vw 40vh 0 rgba(255,255,255,0.18);
+            animation: mistLine 8s ease-in-out infinite;
+        }
+        body.theme-ledger .bg-decoration { animation: ledgerBgScroll 13s linear infinite; }
+        body.theme-ledger .bg-decoration::before {
+            content: '¥ + + ¥ + + ¥ + + ¥ + + ¥ + + ¥ + +'; left: 0; right: 0; top: 18%; opacity: 0.16;
+            font-family: var(--font-display); font-size: 1rem; color: var(--primary); white-space: nowrap;
+            animation: tickerTape 22s linear infinite;
+        }
+        body.theme-arcade .bg-decoration { animation: arcadeGridStep 4.5s steps(8,end) infinite; }
+        body.theme-arcade .bg-decoration::before {
+            inset: 0; opacity: 0.38; image-rendering: pixelated;
+            background: linear-gradient(90deg, rgba(245,158,11,0.72) 8px, transparent 8px), linear-gradient(90deg, rgba(34,211,238,0.64) 8px, transparent 8px), linear-gradient(90deg, rgba(251,113,133,0.62) 8px, transparent 8px);
+            background-size: 120px 8px, 150px 8px, 180px 8px;
+            background-position: 10% 18%, 74% 46%, 22% 76%;
+            background-repeat: repeat-x; animation: pixelRails 5.2s steps(10,end) infinite;
         }
 
         /* 模态框 */
@@ -665,8 +812,35 @@
         @keyframes tickerTape { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
         @keyframes pixelRails { from { background-position: 10% 22%, 72% 44%, 22% 72%; } to { background-position: 40% 22%, 42% 44%, 52% 72%; } }
         @keyframes pixelDrop { from { transform: translateY(-12vh); } to { transform: translateY(124vh); } }
+        @keyframes themeDotPulse { 0%,100% { transform: scale(0.94); } 50% { transform: scale(1.08); } }
+        @keyframes swatchShine { 0%,100% { transform: translateX(-58%) rotate(10deg); } 48%,62% { transform: translateX(58%) rotate(10deg); } }
+        @keyframes swatchScan { from { background-position-y: 0; } to { background-position-y: 14px; } }
+        @keyframes swatchDrift { from { background-position: 0 0; } to { background-position: 90px 0; } }
+        @keyframes swatchRipple { 0% { transform: scale(0.72); opacity: 0.56; } 78%,100% { transform: scale(1.28); opacity: 0.12; } }
+        @keyframes swatchSlide { from { transform: translateX(-18%); } to { transform: translateX(18%); } }
+        @keyframes swatchMist { from { transform: translateX(-22%) skewX(-18deg); } to { transform: translateX(22%) skewX(-18deg); } }
+        @keyframes swatchLedger { from { background-position: 0 0, 0 0; } to { background-position: 20px 0, 0 14px; } }
+        @keyframes swatchPixels { from { background-position: 0 24%, 16px 68%; } to { background-position: 38px 24%, -36px 68%; } }
+        @keyframes auroraDecorDrift { from { background-position: 0 0; } to { background-position: 80px 56px; } }
+        @keyframes auroraBgSweep { from { transform: translateX(-8%) skewY(-8deg); } to { transform: translateX(8%) skewY(-4deg); } }
+        @keyframes cyberGridDrift { from { background-position: 0 0, 0 0; } to { background-position: 72px 0, 0 44px; } }
+        @keyframes cyberSweepWide { from { transform: translateX(0) skewX(-18deg); } to { transform: translateX(760%) skewX(-18deg); } }
+        @keyframes warmPatternDrift { from { background-position: 0 0; } to { background-position: 68px 68px; } }
+        @keyframes warmRibbon { from { background-position: 0 0; } to { background-position: 160px 0; } }
+        @keyframes oceanCurrent { from { background-position: 0 0; } to { background-position: 44px 18px; } }
+        @keyframes oceanRippleBg { 0% { transform: translate(-50%,-50%) scale(0.74); opacity: 0.42; } 76%,100% { transform: translate(-50%,-50%) scale(1.12); opacity: 0.10; } }
+        @keyframes monoPaperShift { from { background-position: 0 0; } to { background-position: 48px 0; } }
+        @keyframes forestBreath { from { background-position: 0 0; } to { background-position: 34px 42px; } }
+        @keyframes forestLightSweep { from { transform: translateX(-10vw) skewX(-16deg); } to { transform: translateX(64vw) skewX(-16deg); } }
+        @keyframes ledgerBgScroll { from { background-position: 0 0, 0 0; } to { background-position: 88px 0, 0 44px; } }
+        @keyframes arcadeGridStep { from { background-position: 0 0, 0 0; } to { background-position: 24px 24px, 24px 24px; } }
 
         @media (prefers-reduced-motion: reduce) {
+            .bg-decoration,
+            .bg-decoration::before,
+            .bg-decoration::after,
+            .theme-card::before,
+            .theme-dot,
             .clock-effects,
             .clock-effects::before,
             .clock-effects::after,
@@ -680,7 +854,7 @@
         .month-stats { font-size: 0.85rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
         .month-stats b { color: var(--text); font-weight: 700; }
 
-        body { overflow-x: hidden; }
+        body { overflow: hidden; }
         #clockView { overflow: hidden; }
 
         @media (max-width: 480px) {
@@ -929,7 +1103,13 @@
         }
         function applyTheme(){
             state.theme=normalizeTheme(state.theme);
-            document.body.className='theme-'+state.theme;
+            const themeClass='theme-'+state.theme;
+            document.documentElement.className=themeClass;
+            document.body.className=themeClass;
+            const bg=getComputedStyle(document.body).getPropertyValue('--bg').trim()||'#101422';
+            document.documentElement.style.backgroundColor=bg;
+            const themeColor=document.querySelector('meta[name="theme-color"]');
+            if(themeColor)themeColor.setAttribute('content',bg);
             renderThemeGrid();
         }
 
