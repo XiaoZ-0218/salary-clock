@@ -2,8 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="哄我上班">
+    <link rel="apple-touch-icon" href="img/logo.png">
     <title>哄我上班 😽</title>
+    <link rel="icon" type="image/png" href="img/logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -154,10 +159,11 @@
 
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
-        #setupView { max-width: 680px; margin: 0 auto; padding: 20px; min-height: 100vh; }
+        #setupView { max-width: 680px; margin: 0 auto; padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); min-height: 100vh; }
         #clockView {
             min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; justify-content: center; position: relative; padding: 24px;
+            padding-top: max(24px, env(safe-area-inset-top));
         }
 
         /* ========== 标题 ========== */
