@@ -8,19 +8,19 @@
     <meta name="apple-mobile-web-app-title" content="哄我上班">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#101422">
-    <link rel="manifest" href="site.webmanifest?v=20260420-fullscreen">
-    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png?v=20260420-fullscreen">
-    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="img/apple-touch-icon.png?v=20260420-fullscreen">
+    <link rel="manifest" href="site.webmanifest?v=20260421-edgefill">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png?v=20260421-edgefill">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="img/apple-touch-icon.png?v=20260421-edgefill">
     <title>哄我上班 😽</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=20260420-fullscreen">
-    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png?v=20260420-fullscreen">
-    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png?v=20260420-fullscreen">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=20260421-edgefill">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png?v=20260421-edgefill">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png?v=20260421-edgefill">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             background: var(--bg-gradient);
             background-color: var(--bg, #101422);
             overflow: hidden;
@@ -60,7 +60,7 @@
             --personal-text: #93c5fd;
             --work-bg: rgba(248,113,113,0.22);
             --work-text: #fca5a5;
-            --app-height: 100dvh;
+            --app-height: 100lvh;
             --safe-bottom: 0px;
         }
 
@@ -72,14 +72,22 @@
             width: 100%;
             height: 100%;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             min-height: 100dvh;
+            min-height: 100lvh;
             transition: background 0.5s ease;
             overflow: hidden;
             overscroll-behavior: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: pan-y;
-            position: fixed;
-            inset: 0;
+            position: relative;
+        }
+        body::before {
+            content: ''; position: fixed;
+            inset: calc(-80px - env(safe-area-inset-top, 0px)) calc(-80px - env(safe-area-inset-right, 0px)) calc(-80px - env(safe-area-inset-bottom, 0px)) calc(-80px - env(safe-area-inset-left, 0px));
+            z-index: 0; pointer-events: none;
+            background: var(--bg-gradient);
+            background-color: var(--bg);
         }
 
         /* ========== 主题 ========== */
@@ -324,18 +332,18 @@
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
         #setupView {
-            width: 100%; max-width: 680px; height: 100vh; height: var(--app-height); margin: 0 auto; padding: 20px;
+            width: 100%; max-width: 680px; height: 100vh; height: -webkit-fill-available; height: var(--app-height); margin: 0 auto; padding: 20px;
             padding-top: max(20px, env(safe-area-inset-top));
             padding-bottom: 20px;
             overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch; position: relative; z-index: 1;
+            -webkit-overflow-scrolling: touch; position: relative; z-index: 2;
         }
         #clockView {
-            width: 100%; height: 100vh; height: var(--app-height); min-height: 100vh; display: flex; flex-direction: column;
+            width: 100%; height: 100vh; height: -webkit-fill-available; height: var(--app-height); min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; justify-content: center; position: relative; padding: 24px;
             padding-top: max(24px, env(safe-area-inset-top));
             padding-bottom: 24px;
-            overflow: hidden; overscroll-behavior: none; isolation: isolate;
+            overflow: hidden; overscroll-behavior: none; isolation: isolate; z-index: 2;
         }
 
         /* ========== 标题 ========== */
@@ -559,7 +567,7 @@
 
         /* 背景装饰 */
         .bg-decoration {
-            position: fixed; inset: -80px; pointer-events: none; z-index: 0; overflow: hidden;
+            position: fixed; inset: -80px; pointer-events: none; z-index: 1; overflow: hidden;
             background: var(--decor); background-size: var(--decor-size); opacity: var(--decor-opacity);
             transform: translateZ(0);
         }
