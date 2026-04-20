@@ -21,7 +21,8 @@
         html {
             width: 100%;
             height: 100%;
-            background: var(--bg, #101422);
+            background: var(--bg-gradient);
+            background-color: var(--bg, #101422);
             overflow: hidden;
             overscroll-behavior: none;
         }
@@ -59,11 +60,14 @@
             --personal-text: #93c5fd;
             --work-bg: rgba(248,113,113,0.22);
             --work-text: #fca5a5;
+            --app-height: 100dvh;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         body {
             font-family: var(--font-body);
             background: var(--bg-gradient);
+            background-color: var(--bg);
             color: var(--text);
             width: 100%;
             height: 100%;
@@ -74,6 +78,8 @@
             overscroll-behavior: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: pan-y;
+            position: fixed;
+            inset: 0;
         }
 
         /* ========== 主题 ========== */
@@ -318,17 +324,17 @@
         /* ========== 布局 ========== */
         .hidden { display: none !important; }
         #setupView {
-            width: 100%; max-width: 680px; height: 100vh; height: 100dvh; margin: 0 auto; padding: 20px;
+            width: 100%; max-width: 680px; height: 100vh; height: var(--app-height); margin: 0 auto; padding: 20px;
             padding-top: max(20px, env(safe-area-inset-top));
-            padding-bottom: max(40px, env(safe-area-inset-bottom));
+            padding-bottom: calc(16px + var(--safe-bottom));
             overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch; position: relative; z-index: 1;
         }
         #clockView {
-            width: 100%; height: 100vh; height: 100dvh; min-height: 100vh; display: flex; flex-direction: column;
+            width: 100%; height: 100vh; height: var(--app-height); min-height: 100vh; display: flex; flex-direction: column;
             align-items: center; justify-content: center; position: relative; padding: 24px;
             padding-top: max(24px, env(safe-area-inset-top));
-            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            padding-bottom: calc(24px + var(--safe-bottom));
             overflow: hidden; overscroll-behavior: none; isolation: isolate;
         }
 
@@ -494,9 +500,10 @@
         .enter-btn {
             width: 100%; padding: 16px; border: 1px solid var(--button-border); border-radius: var(--radius); background: var(--button-bg);
             color: var(--on-primary); font-family: var(--font-body); font-size: 1.05rem; font-weight: 600;
-            cursor: pointer; transition: all 0.2s; margin-top: 8px; margin-bottom: 40px;
+            cursor: pointer; transition: all 0.2s; margin-top: 8px; margin-bottom: 18px;
             box-shadow: 0 8px 24px var(--shadow);
         }
+        #enterBtn { margin-bottom: 0; }
         .enter-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--shadow); }
         .enter-btn:active { transform: translateY(0); }
 
@@ -526,7 +533,7 @@
         }
         .clock-sub span { font-variant-numeric: tabular-nums; }
         .back-btn {
-            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: calc(14px + var(--safe-bottom)); left: 50%; transform: translateX(-50%);
             padding: 10px 24px; border: 1px solid var(--card-border); background: var(--card);
             backdrop-filter: blur(12px); border-radius: 100px; font-family: var(--font-body);
             font-size: 0.85rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s; z-index: 10;
@@ -625,7 +632,8 @@
         /* 模态框 */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none;
-            align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; z-index: 100; padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom)); backdrop-filter: blur(4px);
         }
         .modal-overlay.active { display: flex; }
         .modal {
@@ -850,6 +858,10 @@
             }
         }
 
+        @supports (padding-bottom: constant(safe-area-inset-bottom)) {
+            :root { --safe-bottom: constant(safe-area-inset-bottom); }
+        }
+
         .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 10px; }
         .month-stats { font-size: 0.85rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
         .month-stats b { color: var(--text); font-weight: 700; }
@@ -1043,6 +1055,13 @@
         function formatMoneyShort(n){return'¥'+n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});}
         function parseTime(ts){const[h,m]=ts.split(':').map(Number);return h*60+m;}
         function addMinutes(ts,min){const total=parseTime(ts)+min;const h=Math.floor(total/60),m=total%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+
+        function syncViewportHeight(){
+            const height=Math.round(window.innerHeight||document.documentElement.clientHeight||0);
+            if(height>0)document.documentElement.style.setProperty('--app-height',height+'px');
+        }
+        window.addEventListener('resize',syncViewportHeight,{passive:true});
+        window.addEventListener('orientationchange',()=>setTimeout(syncViewportHeight,120),{passive:true});
 
         // ==================== 时间选项 ====================
         const START_OPTIONS=['09:00','09:30','10:00','10:30','11:00'];
@@ -1402,6 +1421,7 @@
         document.getElementById('monthlySalary').addEventListener('input',saveState);
 
         // ==================== 初始化 ====================
+        syncViewportHeight();
         document.getElementById('monthlySalary').value=state.monthlySalary||'';
         applyTheme();
         renderModeGrid();
