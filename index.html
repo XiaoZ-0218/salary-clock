@@ -447,6 +447,16 @@
         }
         .back-btn:hover { border-color: var(--primary); color: var(--text); }
 
+        .clock-effects {
+            position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+        }
+        .clock-effects::before,
+        .clock-effects::after,
+        .clock-effects .effect {
+            content: ''; position: absolute; display: block;
+        }
+        .clock-effects .effect { opacity: 0; }
+
         /* 倒计时 */
         .countdown-box { text-align: center; position: relative; z-index: 1; margin-top: 20px; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
@@ -494,6 +504,16 @@
         .holiday-chip { font-size: 0.72rem; padding: 4px 10px; background: var(--official-bg); color: var(--official-text); border-radius: var(--radius-sm); font-weight: 500; }
 
         /* 主题人格化细节 */
+        body.theme-aurora #clockView .clock-effects::before {
+            inset: 8% -18%; opacity: 0.58;
+            background: linear-gradient(115deg, transparent 5%, rgba(117,240,207,0.26) 25%, transparent 42%, rgba(255,122,182,0.23) 62%, transparent 86%);
+            filter: blur(18px); transform: skewY(-10deg); animation: auroraSweep 10s ease-in-out infinite alternate;
+        }
+        body.theme-aurora #clockView .effect-a {
+            inset: auto 12% 18% 12%; height: 1px; opacity: 0.8;
+            background: linear-gradient(90deg, transparent, rgba(117,240,207,0.85), rgba(255,122,182,0.75), transparent);
+            animation: horizonGlow 4.5s ease-in-out infinite;
+        }
         body.theme-aurora .clock-display::before {
             content: ''; position: absolute; inset: -22px -28px; border: 1px solid rgba(117,240,207,0.22);
             transform: skewY(-2deg); z-index: -1; box-shadow: 0 0 40px rgba(185,144,255,0.14);
@@ -504,33 +524,138 @@
         body.theme-cyber .lunch-chip,
         body.theme-cyber .btn-icon,
         body.theme-cyber .modal-btn { box-shadow: inset 0 0 0 1px rgba(0,255,157,0.06); }
+        body.theme-cyber #clockView .clock-effects::before {
+            inset: 0; opacity: 0.28;
+            background: repeating-linear-gradient(0deg, transparent 0 8px, rgba(0,255,157,0.16) 9px, transparent 10px);
+            animation: scanlines 1.6s linear infinite;
+        }
+        body.theme-cyber #clockView .clock-effects::after {
+            top: -20%; bottom: -20%; width: 24%; left: -32%; opacity: 0.38;
+            background: linear-gradient(90deg, transparent, rgba(0,255,157,0.22), rgba(255,43,214,0.20), transparent);
+            filter: blur(10px); transform: skewX(-18deg); animation: neonSweep 5.5s linear infinite;
+        }
+        body.theme-cyber .clock-amount { animation: terminalPulse 2.2s steps(2,end) infinite; }
         body.theme-cyber .clock-label::before { content: 'SYS / '; color: var(--primary); }
         body.theme-warm .card { border-style: dashed; }
         body.theme-warm .clock-amount { color: #e11d48; }
+        body.theme-warm #clockView .effect-a {
+            inset: 10% 8% auto 8%; height: 36%; opacity: 0.52;
+            background: repeating-linear-gradient(135deg, rgba(225,29,72,0.16) 0 12px, transparent 12px 28px, rgba(20,184,166,0.14) 28px 40px, transparent 40px 58px);
+            transform: rotate(-2deg); animation: sodaStripes 9s linear infinite;
+        }
+        body.theme-warm #clockView .effect-b {
+            left: 10%; right: 10%; bottom: 14%; height: 2px; opacity: 0.65;
+            background: linear-gradient(90deg, transparent, rgba(225,29,72,0.72), rgba(20,184,166,0.62), transparent);
+            animation: horizonGlow 3.8s ease-in-out infinite;
+        }
         body.theme-warm .enter-btn { box-shadow: 0 8px 0 rgba(20,184,166,0.18), 0 14px 30px var(--shadow); }
         body.theme-ocean .clock-display,
         body.theme-ocean .countdown-box { padding: 26px; border: 1px solid rgba(103,232,249,0.18); border-radius: 50%; }
+        body.theme-ocean #clockView .effect-a,
+        body.theme-ocean #clockView .effect-b,
+        body.theme-ocean #clockView .effect-c {
+            width: 280px; height: 280px; left: 50%; top: 50%; border-radius: 50%;
+            border: 1px solid rgba(103,232,249,0.34); opacity: 0; transform: translate(-50%,-50%) scale(0.2);
+            animation: sonarPing 5.4s ease-out infinite;
+        }
+        body.theme-ocean #clockView .effect-b { animation-delay: 1.8s; border-color: rgba(163,230,53,0.25); }
+        body.theme-ocean #clockView .effect-c { animation-delay: 3.6s; border-color: rgba(240,171,252,0.22); }
         body.theme-ocean .day.today { box-shadow: inset 0 0 0 2px rgba(54,226,255,0.22), 0 0 18px rgba(54,226,255,0.16); }
         body.theme-mono .card,
         body.theme-mono .time-btn,
         body.theme-mono .lunch-chip,
         body.theme-mono .salary-input,
         body.theme-mono .modal-btn { border-width: 2px; }
+        body.theme-mono #clockView .clock-effects::before {
+            inset: 11% 12%; opacity: 0.5;
+            background: linear-gradient(90deg, transparent 0 49%, rgba(17,17,17,0.30) 49% 51%, transparent 51% 100%);
+            animation: editorialSlide 8s ease-in-out infinite alternate;
+        }
+        body.theme-mono #clockView .effect-a {
+            left: 8%; right: 8%; top: 22%; height: 1px; opacity: 0.62; background: #111111;
+            animation: printRule 5s ease-in-out infinite;
+        }
         body.theme-mono .enter-btn:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 rgba(17,17,17,0.22); }
         body.theme-forest .card { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
         body.theme-forest .clock-amount { font-weight: 700; }
+        body.theme-forest #clockView .clock-effects::before {
+            inset: -20% auto -20% 14%; width: 22%; opacity: 0.38;
+            background: linear-gradient(90deg, transparent, rgba(234,255,246,0.42), transparent);
+            filter: blur(12px); transform: skewX(-16deg); animation: lightShaft 8s ease-in-out infinite alternate;
+        }
+        body.theme-forest #clockView .effect-a,
+        body.theme-forest #clockView .effect-b {
+            width: 40%; height: 1px; opacity: 0.5;
+            background: linear-gradient(90deg, transparent, rgba(15,118,110,0.42), transparent);
+            animation: mistLine 7s ease-in-out infinite;
+        }
+        body.theme-forest #clockView .effect-a { left: 8%; top: 30%; }
+        body.theme-forest #clockView .effect-b { right: 6%; bottom: 28%; animation-delay: 2.2s; }
         body.theme-ledger .card { border-top: 3px solid var(--primary); }
         body.theme-ledger .clock-label { color: var(--primary); }
+        body.theme-ledger #clockView .clock-effects::before {
+            inset: 0; opacity: 0.17;
+            background: repeating-linear-gradient(90deg, transparent 0 72px, rgba(250,204,21,0.58) 73px 74px), repeating-linear-gradient(0deg, transparent 0 38px, rgba(255,255,255,0.22) 39px 40px);
+            animation: ledgerGrid 12s linear infinite;
+        }
+        body.theme-ledger #clockView .clock-effects::after {
+            content: '¥ + + ¥ + + ¥ + + ¥ + +'; left: 0; right: 0; bottom: 12%; opacity: 0.15;
+            font-family: var(--font-display); font-size: 1rem; color: var(--primary); white-space: nowrap;
+            animation: tickerTape 18s linear infinite;
+        }
         body.theme-ledger .clock-sub b { color: var(--primary); }
         body.theme-arcade .time-btn,
         body.theme-arcade .lunch-chip,
         body.theme-arcade .btn-icon,
         body.theme-arcade .modal-btn { box-shadow: 3px 3px 0 rgba(0,0,0,0.30); }
+        body.theme-arcade #clockView .clock-effects::before {
+            inset: 0; opacity: 0.28;
+            background: linear-gradient(90deg, rgba(245,158,11,0.9) 8px, transparent 8px), linear-gradient(90deg, rgba(34,211,238,0.85) 8px, transparent 8px), linear-gradient(90deg, rgba(251,113,133,0.85) 8px, transparent 8px);
+            background-size: 120px 8px, 150px 8px, 180px 8px;
+            background-position: 10% 22%, 72% 44%, 22% 72%;
+            background-repeat: repeat-x; image-rendering: pixelated; animation: pixelRails 4.5s steps(9,end) infinite;
+        }
+        body.theme-arcade #clockView .effect-a,
+        body.theme-arcade #clockView .effect-b,
+        body.theme-arcade #clockView .effect-c {
+            width: 10px; height: 10px; opacity: 0.85; image-rendering: pixelated;
+            background: var(--primary); box-shadow: 20px 0 0 var(--primary), 40px 0 0 var(--primary-light), 60px 0 0 var(--accent);
+            animation: pixelDrop 5s steps(10,end) infinite;
+        }
+        body.theme-arcade #clockView .effect-a { left: 12%; top: -10%; }
+        body.theme-arcade #clockView .effect-b { left: 58%; top: -18%; animation-delay: 1.4s; }
+        body.theme-arcade #clockView .effect-c { left: 34%; top: -14%; animation-delay: 2.8s; }
         body.theme-arcade .time-btn:hover,
         body.theme-arcade .lunch-chip:hover,
         body.theme-arcade .btn-icon:hover,
         body.theme-arcade .modal-btn:hover { transform: translate(-1px,-1px); }
         body.theme-arcade .day:hover:not(.empty):not(.disabled) { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 rgba(0,0,0,0.30); }
+
+        @keyframes auroraSweep { from { transform: translateX(-8%) skewY(-10deg); } to { transform: translateX(8%) skewY(-5deg); } }
+        @keyframes horizonGlow { 0%,100% { transform: scaleX(0.72); opacity: 0.36; } 50% { transform: scaleX(1); opacity: 0.86; } }
+        @keyframes scanlines { from { background-position-y: 0; } to { background-position-y: 20px; } }
+        @keyframes neonSweep { from { transform: translateX(0) skewX(-18deg); } to { transform: translateX(680%) skewX(-18deg); } }
+        @keyframes terminalPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.92; } }
+        @keyframes sodaStripes { from { background-position: 0 0; } to { background-position: 120px 0; } }
+        @keyframes sonarPing { 0% { opacity: 0.62; transform: translate(-50%,-50%) scale(0.18); } 72%,100% { opacity: 0; transform: translate(-50%,-50%) scale(2.35); } }
+        @keyframes editorialSlide { from { transform: translateX(-16%); } to { transform: translateX(16%); } }
+        @keyframes printRule { 0%,100% { transform: translateY(0); opacity: 0.18; } 50% { transform: translateY(36vh); opacity: 0.55; } }
+        @keyframes lightShaft { from { transform: translateX(-8vw) skewX(-16deg); } to { transform: translateX(42vw) skewX(-16deg); } }
+        @keyframes mistLine { 0%,100% { transform: translateX(-12px); opacity: 0.16; } 50% { transform: translateX(24px); opacity: 0.58; } }
+        @keyframes ledgerGrid { from { background-position: 0 0, 0 0; } to { background-position: 74px 0, 0 40px; } }
+        @keyframes tickerTape { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+        @keyframes pixelRails { from { background-position: 10% 22%, 72% 44%, 22% 72%; } to { background-position: 40% 22%, 42% 44%, 52% 72%; } }
+        @keyframes pixelDrop { from { transform: translateY(-12vh); } to { transform: translateY(124vh); } }
+
+        @media (prefers-reduced-motion: reduce) {
+            .clock-effects,
+            .clock-effects::before,
+            .clock-effects::after,
+            .clock-effects .effect,
+            .clock-amount {
+                animation: none !important;
+            }
+        }
 
         .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 10px; }
         .month-stats { font-size: 0.85rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
@@ -634,6 +759,11 @@
 
     <!-- 时钟页 -->
     <div id="clockView" class="hidden">
+        <div class="clock-effects" aria-hidden="true">
+            <div class="effect effect-a"></div>
+            <div class="effect effect-b"></div>
+            <div class="effect effect-c"></div>
+        </div>
         <div class="clock-display">
             <div class="clock-label">本月已赚</div>
             <div class="clock-amount" id="clockAmount">¥0.0000</div>
