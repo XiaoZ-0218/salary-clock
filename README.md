@@ -6,7 +6,7 @@
 
 ## 预览
 
-**在线体验：** [哄我上班 😽](https://哄我上班.zxclaw.top)
+**在线体验：** [哄我上班 😽](https://salary-clock-ah8.pages.dev)
 
 或者本地直接打开 `index.html`，无需任何构建步骤。
 
