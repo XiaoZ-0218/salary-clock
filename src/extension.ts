@@ -157,16 +157,6 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
   const config = getConfig();
   const theme = vscode.workspace.getConfiguration('salaryClock').get<string>('theme', 'aurora');
 
-  // 收集当年相关的节假日和调休数据
-  const holidays = Object.entries(HOLIDAYS).map(([date, info]) => ({
-    date,
-    name: info.name,
-  }));
-  const workdays = Object.entries(WORKDAYS).map(([date, info]) => ({
-    date,
-    name: info.name,
-  }));
-
   panel.webview.postMessage({
     type: 'config',
     monthlySalary: config.monthlySalary,
@@ -177,8 +167,8 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
     mode: config.mode,
     decimalPlaces: config.decimalPlaces,
     theme,
-    holidays,
-    workdays,
+    holidays: HOLIDAYS,
+    workdays: WORKDAYS,
   });
 }
 
