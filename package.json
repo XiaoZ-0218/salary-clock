@@ -48,6 +48,11 @@
         "command": "salaryClock.openClock",
         "title": "薪资时钟: 打开完整时钟面板",
         "icon": "$(watch)"
+      },
+      {
+        "command": "salaryClock.debug",
+        "title": "薪资时钟: 输出调试信息",
+        "icon": "$(debug)"
       }
     ],
     "configuration": {

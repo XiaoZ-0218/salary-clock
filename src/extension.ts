@@ -1,13 +1,18 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getConfig, calcEarned, isWorkingTime, formatMoney } from './salary';
+import { getConfig, calcEarned, isWorkingTime, isWorkDay, formatMoney } from './salary';
 
 let statusBarItem: vscode.StatusBarItem;
 let timer: ReturnType<typeof setInterval> | null = null;
 let isVisible = true;
+/** 输出通道用于调试 */
+let outputChannel: vscode.OutputChannel;
 
 export function activate(context: vscode.ExtensionContext) {
+  outputChannel = vscode.window.createOutputChannel('薪资时钟');
+  context.subscriptions.push(outputChannel);
+
   // 状态栏项
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -47,6 +52,13 @@ export function activate(context: vscode.ExtensionContext) {
         statusBarItem.hide();
         vscode.window.showInformationMessage('薪资时钟已隐藏 🙈');
       }
+    })
+  );
+
+  // 命令：调试输出
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.debug', () => {
+      debugInfo();
     })
   );
 
@@ -148,4 +160,41 @@ export function deactivate() {
   if (statusBarItem) {
     statusBarItem.dispose();
   }
+}
+
+// ==================== 调试 ====================
+
+function debugInfo() {
+  const config = getConfig();
+  const now = new Date();
+  const earned = calcEarned(config, now);
+  const working = isWorkingTime(config, now);
+  const wd = isWorkDay(now);
+
+  // 计算当月工作日
+  const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let workDayCount = 0;
+  for (let d = 1; d <= dim; d++) {
+    if (isWorkDay(new Date(now.getFullYear(), now.getMonth(), d))) workDayCount++;
+  }
+  const dailyHours = (() => {
+    const start = config.startTime.split(':').map(Number);
+    const end = config.endTime.split(':').map(Number);
+    return (end[0] * 60 + end[1] - start[0] * 60 - start[1] - config.lunchDurationMin) / 60;
+  })();
+
+  const lines = [
+    `=== 薪资时钟调试 ${now.toLocaleString('zh-CN')} ===`,
+    `配置: 月薪=${config.monthlySalary} 模式=${config.mode} 上班=${config.startTime} 下班=${config.endTime} 午休=${config.lunchDurationMin}分钟(${config.lunchStart}开始)`,
+    `当月: ${now.getFullYear()}年${now.getMonth()+1}月 共${dim}天 ${workDayCount}个工作日 日工时${dailyHours}h 总工时${workDayCount*dailyHours}h`,
+    `时薪: ¥${(config.monthlySalary/(workDayCount*dailyHours)).toFixed(2)}/h`,
+    `今天: isWorkDay=${wd} isWorkingTime=${working}`,
+    `已赚: ${formatMoney(earned, config.decimalPlaces)}`,
+    `状态栏: ${statusBarItem.text}`,
+    ``,
+  ];
+
+  outputChannel.append(lines.join('\n'));
+  outputChannel.show(true);
+  vscode.window.showInformationMessage(`调试信息已输出到"薪资时钟"面板 📋`);
 }
