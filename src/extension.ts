@@ -136,12 +136,41 @@ function updateDisplay() {
   const config = getConfig();
   const now = new Date();
   const earned = calcEarned(config, now);
+  const working = isWorkingTime(config, now);
+  const wd = isWorkDay(now);
   const showIcon = vscode.workspace.getConfiguration('salaryClock').get<boolean>('showIcon', true);
 
   const prefix = showIcon ? '💰 ' : '';
   const moneyStr = formatMoney(earned, config.decimalPlaces);
 
-  if (config.mode === 'work' && !isWorkingTime(config, now)) {
+  // tooltip 显示完整信息
+  const modeLabel = config.mode === 'work' ? '上班才赚钱' : '随时都赚钱';
+  const wdLabel = wd === true ? '✅ 工作日' : wd === 'half' ? '🕐 半天' : '❌ 休息日';
+  const workLabel = working ? '🟢 赚钱中' : '💤 休息中';
+  const dailyHours = (() => {
+    const s = config.startTime.split(':').map(Number);
+    const e = config.endTime.split(':').map(Number);
+    return (e[0] * 60 + e[1] - s[0] * 60 - s[1] - config.lunchDurationMin) / 60;
+  })();
+  // 当月工作日
+  const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let workDayCount = 0;
+  for (let d = 1; d <= dim; d++) {
+    if (isWorkDay(new Date(now.getFullYear(), now.getMonth(), d))) workDayCount++;
+  }
+  const totalHours = workDayCount * dailyHours;
+  const hourlyRate = config.monthlySalary / (totalHours || 1);
+
+  statusBarItem.tooltip = [
+    `${moneyStr}`,
+    `模式: ${modeLabel}  |  ${wdLabel}  |  ${workLabel}`,
+    `月薪: ¥${config.monthlySalary.toLocaleString()}  |  时薪: ¥${hourlyRate.toFixed(2)}`,
+    `工作时间: ${config.startTime}-${config.endTime}  |  午休: ${config.lunchDurationMin}分钟`,
+    `${now.getFullYear()}年${now.getMonth()+1}月: ${workDayCount}个工作日 × ${dailyHours}h = ${totalHours}h`,
+    `点击设置薪资时钟 ⏰`,
+  ].join('\n');
+
+  if (config.mode === 'work' && !working) {
     statusBarItem.text = `${prefix}${moneyStr} 💤`;
     statusBarItem.backgroundColor = undefined;
   } else {
