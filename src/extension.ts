@@ -13,8 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Left,
     100
   );
-  statusBarItem.command = 'salaryClock.openClock';
-  statusBarItem.tooltip = '点击打开完整时钟面板 ⏰';
+  statusBarItem.command = 'salaryClock.showSettings';
+  statusBarItem.tooltip = '点击设置薪资时钟 ⏰';
   context.subscriptions.push(statusBarItem);
 
   startTicking();
