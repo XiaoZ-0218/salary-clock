@@ -1,0 +1,113 @@
+{
+  "name": "salary-clock",
+  "displayName": "哄我上班 - 薪资时钟",
+  "description": "在状态栏实时展示今日工资，每一秒都在变富 💰",
+  "version": "1.0.0",
+  "publisher": "XiaoZ-0218",
+  "license": "MIT",
+  "icon": "img/icon-192.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XiaoZ-0218/salary-clock"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "salary",
+    "clock",
+    "工资",
+    "计时",
+    "状态栏"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "salaryClock.showSettings",
+        "title": "薪资时钟: 设置月薪和工作时间",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "salaryClock.toggleDisplay",
+        "title": "薪资时钟: 切换显示模式",
+        "icon": "$(eye)"
+      }
+    ],
+    "configuration": {
+      "title": "薪资时钟",
+      "properties": {
+        "salaryClock.monthlySalary": {
+          "type": "number",
+          "default": 20000,
+          "description": "月薪（元）"
+        },
+        "salaryClock.startTime": {
+          "type": "string",
+          "default": "09:00",
+          "description": "上班时间 (HH:mm)"
+        },
+        "salaryClock.endTime": {
+          "type": "string",
+          "default": "18:00",
+          "description": "下班时间 (HH:mm)"
+        },
+        "salaryClock.lunchDurationMin": {
+          "type": "number",
+          "default": 60,
+          "description": "午休时长（分钟），0 表示无午休"
+        },
+        "salaryClock.lunchStart": {
+          "type": "string",
+          "default": "12:00",
+          "description": "午休开始时间 (HH:mm)"
+        },
+        "salaryClock.mode": {
+          "type": "string",
+          "enum": [
+            "work",
+            "always"
+          ],
+          "default": "work",
+          "description": "计算模式：work = 上班才赚钱，always = 随时都赚钱"
+        },
+        "salaryClock.decimalPlaces": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 6,
+          "description": "显示的小数位数"
+        },
+        "salaryClock.updateIntervalMs": {
+          "type": "number",
+          "default": 100,
+          "minimum": 50,
+          "maximum": 1000,
+          "description": "刷新间隔（毫秒），越小跳动越快"
+        },
+        "salaryClock.showIcon": {
+          "type": "boolean",
+          "default": true,
+          "description": "在状态栏显示 💰 图标"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0"
+  }
+}
