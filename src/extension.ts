@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getConfig, calcEarned, isWorkingTime, isWorkDay, formatMoney } from './salary';
+import { getConfig, calcEarned, isWorkingTime, isWorkDay, formatMoney, HOLIDAYS, WORKDAYS } from './salary';
 
 let statusBarItem: vscode.StatusBarItem;
 let timer: ReturnType<typeof setInterval> | null = null;
 let isVisible = true;
 /** 输出通道用于调试 */
 let outputChannel: vscode.OutputChannel;
+/** 当前活动的 WebView 面板 */
+let currentPanel: vscode.WebviewPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('薪资时钟');
@@ -18,8 +20,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Left,
     100
   );
-  statusBarItem.command = 'salaryClock.showSettings';
-  statusBarItem.tooltip = '点击设置薪资时钟 ⏰';
+  statusBarItem.command = 'salaryClock.openClock';
+  statusBarItem.tooltip = '点击打开时钟面板 ⏰';
   context.subscriptions.push(statusBarItem);
 
   startTicking();
@@ -67,6 +69,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('salaryClock')) {
         startTicking();
+        // 如果有活动的 WebView 面板，同步配置过去
+        if (currentPanel) {
+          sendConfigToWebview(currentPanel);
+        }
       }
     })
   );
@@ -77,6 +83,11 @@ export function activate(context: vscode.ExtensionContext) {
 // ==================== WebView 时钟面板 ====================
 
 function openClockPanel(context: vscode.ExtensionContext) {
+  // 如果已有面板，先关闭旧的
+  if (currentPanel) {
+    currentPanel.dispose();
+  }
+
   const panel = vscode.window.createWebviewPanel(
     'salaryClock',
     '哄我上班 😽',
@@ -90,6 +101,13 @@ function openClockPanel(context: vscode.ExtensionContext) {
       ],
     }
   );
+
+  currentPanel = panel;
+
+  // 面板关闭时清理引用
+  panel.onDidDispose(() => {
+    currentPanel = undefined;
+  });
 
   // 读取 index.html 并注入资源路径
   const htmlPath = path.join(context.extensionUri.fsPath, 'web', 'index.html');
@@ -114,6 +132,54 @@ function openClockPanel(context: vscode.ExtensionContext) {
   );
 
   panel.webview.html = html;
+
+  // 监听 webview 就绪消息
+  panel.webview.onDidReceiveMessage((message) => {
+    if (message.type === 'ready') {
+      sendConfigToWebview(panel);
+    }
+  });
+
+  // 当面板重新变为可见时也发送配置
+  panel.onDidChangeViewState((e) => {
+    if (e.webviewPanel.visible) {
+      sendConfigToWebview(panel);
+    }
+  });
+
+  // 兜底：短延迟后发送配置
+  setTimeout(() => {
+    sendConfigToWebview(panel);
+  }, 500);
+}
+
+function sendConfigToWebview(panel: vscode.WebviewPanel) {
+  const config = getConfig();
+  const theme = vscode.workspace.getConfiguration('salaryClock').get<string>('theme', 'aurora');
+
+  // 收集当年相关的节假日和调休数据
+  const holidays = Object.entries(HOLIDAYS).map(([date, info]) => ({
+    date,
+    name: info.name,
+  }));
+  const workdays = Object.entries(WORKDAYS).map(([date, info]) => ({
+    date,
+    name: info.name,
+  }));
+
+  panel.webview.postMessage({
+    type: 'config',
+    monthlySalary: config.monthlySalary,
+    startTime: config.startTime,
+    endTime: config.endTime,
+    lunchDurationMin: config.lunchDurationMin,
+    lunchStart: config.lunchStart,
+    mode: config.mode,
+    decimalPlaces: config.decimalPlaces,
+    theme,
+    holidays,
+    workdays,
+  });
 }
 
 // ==================== 状态栏跳动 ====================
@@ -162,12 +228,13 @@ function updateDisplay() {
   const hourlyRate = config.monthlySalary / (totalHours || 1);
 
   statusBarItem.tooltip = [
+    `点击打开时钟面板`,
     `${moneyStr}`,
     `模式: ${modeLabel}  |  ${wdLabel}  |  ${workLabel}`,
     `月薪: ¥${config.monthlySalary.toLocaleString()}  |  时薪: ¥${hourlyRate.toFixed(2)}`,
     `工作时间: ${config.startTime}-${config.endTime}  |  午休: ${config.lunchDurationMin}分钟`,
     `${now.getFullYear()}年${now.getMonth()+1}月: ${workDayCount}个工作日 × ${dailyHours}h = ${totalHours}h`,
-    `点击设置薪资时钟 ⏰`,
+    `🖱️ 点击打开时钟面板 | Ctrl+Shift+P → 薪资时钟: 设置 可修改配置`,
   ].join('\n');
 
   if (config.mode === 'work' && !working) {
@@ -188,6 +255,10 @@ export function deactivate() {
   }
   if (statusBarItem) {
     statusBarItem.dispose();
+  }
+  if (currentPanel) {
+    currentPanel.dispose();
+    currentPanel = undefined;
   }
 }
 
