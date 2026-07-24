@@ -97,7 +97,6 @@ function openClockPanel(context: vscode.ExtensionContext) {
       retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.joinPath(context.extensionUri, 'web'),
-        vscode.Uri.joinPath(context.extensionUri, 'img'),
       ],
     }
   );
@@ -109,27 +108,9 @@ function openClockPanel(context: vscode.ExtensionContext) {
     currentPanel = undefined;
   });
 
-  // 读取 index.html 并注入资源路径
+  // 读取 index.html
   const htmlPath = path.join(context.extensionUri.fsPath, 'web', 'index.html');
-  let html = fs.readFileSync(htmlPath, 'utf-8');
-
-  // 替换相对路径的资源为 webview URI
-  const webUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, 'web')
-  );
-  const imgUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, 'img')
-  );
-
-  // 替换 manifest 和图标路径
-  html = html.replace(
-    /href="site\.webmanifest[^"]*"/g,
-    `href="${webUri}/site.webmanifest"`
-  );
-  html = html.replace(
-    /href="img\/([^"]+)"/g,
-    `href="${imgUri}/$1"`
-  );
+  const html = fs.readFileSync(htmlPath, 'utf-8');
 
   panel.webview.html = html;
 
