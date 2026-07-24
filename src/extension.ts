@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { getConfig, calcEarned, isWorkingTime, formatMoney } from './salary';
 
 let statusBarItem: vscode.StatusBarItem;
@@ -6,19 +8,25 @@ let timer: ReturnType<typeof setInterval> | null = null;
 let isVisible = true;
 
 export function activate(context: vscode.ExtensionContext) {
-  // 创建状态栏项 —— 放在左侧，高优先级
+  // 状态栏项
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     100
   );
-  statusBarItem.command = 'salaryClock.showSettings';
-  statusBarItem.tooltip = '点击设置薪资时钟 ⏰';
+  statusBarItem.command = 'salaryClock.openClock';
+  statusBarItem.tooltip = '点击打开完整时钟面板 ⏰';
   context.subscriptions.push(statusBarItem);
 
-  // 启动定时刷新
   startTicking();
 
-  // 注册命令：打开设置
+  // 命令：打开完整时钟面板（WebView）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.openClock', () => {
+      openClockPanel(context);
+    })
+  );
+
+  // 命令：打开设置
   context.subscriptions.push(
     vscode.commands.registerCommand('salaryClock.showSettings', () => {
       vscode.commands.executeCommand(
@@ -28,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 注册命令：切换显示
+  // 命令：切换状态栏显示
   context.subscriptions.push(
     vscode.commands.registerCommand('salaryClock.toggleDisplay', () => {
       isVisible = !isVisible;
@@ -42,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 监听配置变更，重启定时器
+  // 配置变更监听
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('salaryClock')) {
@@ -51,12 +59,54 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 初始化显示
   updateDisplay();
 }
 
+// ==================== WebView 时钟面板 ====================
+
+function openClockPanel(context: vscode.ExtensionContext) {
+  const panel = vscode.window.createWebviewPanel(
+    'salaryClock',
+    '哄我上班 😽',
+    vscode.ViewColumn.One,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(context.extensionUri, 'web'),
+        vscode.Uri.joinPath(context.extensionUri, 'img'),
+      ],
+    }
+  );
+
+  // 读取 index.html 并注入资源路径
+  const htmlPath = path.join(context.extensionUri.fsPath, 'web', 'index.html');
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+
+  // 替换相对路径的资源为 webview URI
+  const webUri = panel.webview.asWebviewUri(
+    vscode.Uri.joinPath(context.extensionUri, 'web')
+  );
+  const imgUri = panel.webview.asWebviewUri(
+    vscode.Uri.joinPath(context.extensionUri, 'img')
+  );
+
+  // 替换 manifest 和图标路径
+  html = html.replace(
+    /href="site\.webmanifest[^"]*"/g,
+    `href="${webUri}/site.webmanifest"`
+  );
+  html = html.replace(
+    /href="img\/([^"]+)"/g,
+    `href="${imgUri}/$1"`
+  );
+
+  panel.webview.html = html;
+}
+
+// ==================== 状态栏跳动 ====================
+
 function startTicking() {
-  // 清除旧定时器
   if (timer !== null) {
     clearInterval(timer);
     timer = null;
@@ -84,7 +134,6 @@ function updateDisplay() {
     statusBarItem.backgroundColor = undefined;
   } else {
     statusBarItem.text = `${prefix}${moneyStr}`;
-    // 绿色背景表示正在赚钱中
     statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
   }
 

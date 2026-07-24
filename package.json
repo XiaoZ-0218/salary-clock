@@ -26,6 +26,11 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "files": [
+    "out",
+    "img",
+    "web"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -36,8 +41,13 @@
       },
       {
         "command": "salaryClock.toggleDisplay",
-        "title": "薪资时钟: 切换显示模式",
+        "title": "薪资时钟: 切换状态栏显示",
         "icon": "$(eye)"
+      },
+      {
+        "command": "salaryClock.openClock",
+        "title": "薪资时钟: 打开完整时钟面板",
+        "icon": "$(watch)"
       }
     ],
     "configuration": {
