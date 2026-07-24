@@ -36,7 +36,7 @@
     "commands": [
       {
         "command": "salaryClock.showSettings",
-        "title": "薪资时钟: 设置月薪和工作时间",
+        "title": "薪资时钟: 打开扩展设置",
         "icon": "$(gear)"
       },
       {
@@ -46,13 +46,21 @@
       },
       {
         "command": "salaryClock.openClock",
-        "title": "薪资时钟: 打开完整时钟面板",
+        "title": "薪资时钟: 打开时钟面板",
         "icon": "$(watch)"
       },
       {
         "command": "salaryClock.debug",
         "title": "薪资时钟: 输出调试信息",
         "icon": "$(debug)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "salaryClock.openClock",
+        "key": "alt+shift+d",
+        "mac": "alt+shift+d",
+        "when": "true"
       }
     ],
     "configuration": {
@@ -110,6 +118,31 @@
           "type": "boolean",
           "default": true,
           "description": "在状态栏显示 💰 图标"
+        },
+        "salaryClock.theme": {
+          "type": "string",
+          "enum": [
+            "aurora",
+            "cyber",
+            "warm",
+            "ocean",
+            "mono",
+            "forest",
+            "ledger",
+            "arcade"
+          ],
+          "enumDescriptions": [
+            "极光舞台",
+            "霓虹终端",
+            "樱桃汽水",
+            "深海声呐",
+            "黑白杂志",
+            "松林晨雾",
+            "黑金账本",
+            "像素街机"
+          ],
+          "default": "aurora",
+          "description": "时钟面板主题样式"
         }
       }
     }
