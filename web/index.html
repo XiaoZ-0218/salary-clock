@@ -552,6 +552,14 @@
     </div>
 
     <script>
+        // ==================== VS Code API ====================
+        var vscodeApi;
+        try {
+            vscodeApi = acquireVsCodeApi();
+        } catch (e) {
+            vscodeApi = null;
+        }
+
         // ==================== 配置（默认值，会被 postMessage 覆盖）====================
         let config = {
             monthlySalary: 20000,
@@ -835,6 +843,11 @@
         clockRunning = true;
         updateClockSub();
         animateClock();
+
+        // 通知扩展 webview 已就绪
+        if (vscodeApi) {
+            vscodeApi.postMessage({ type: 'ready' });
+        }
     </script>
 </body>
 </html>
