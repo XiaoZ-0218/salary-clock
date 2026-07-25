@@ -255,20 +255,22 @@ function updateDisplay() {
   const totalHours = stats.hours;
   const hourlyRate = config.monthlySalary / (totalHours || 1);
 
-  // tooltip 显示完整信息
+  // tooltip（MarkdownString，VS Code 渲染 markdown / $(icon)）
   const modeLabel = config.mode === 'work' ? '上班才赚钱' : '随时都赚钱';
   const wdLabel = wd === true ? '✅ 工作日' : wd === 'half' ? '🕐 半天' : '❌ 休息日';
   const workLabel = working ? '🟢 赚钱中' : '💤 休息中';
-
-  statusBarItem.tooltip = [
-    `点击打开薪资时钟设置`,
-    `${moneyStr}`,
-    `模式: ${modeLabel}  |  ${wdLabel}  |  ${workLabel}`,
-    `月薪: ¥${config.monthlySalary.toLocaleString()}  |  时薪: ¥${hourlyRate.toFixed(2)}`,
-    `工作时间: ${config.startTime}-${config.endTime}  |  午休: ${config.lunchDurationMin}分钟`,
-    `${now.getFullYear()}年${now.getMonth() + 1}月: ${stats.days}个工作日 × ${dailyHours}h = ${totalHours}h`,
-    `⚙️ 点击打开设置 | Alt+Shift+D 打开时钟面板`,
-  ].join('\n');
+  const md = new vscode.MarkdownString(
+    [
+      `💰 **${moneyStr}** · ${workLabel} · ${wdLabel} · ${modeLabel}`,
+      ``,
+      `⏱️ 时薪 **¥${hourlyRate.toFixed(2)}/h** · 工时 ${config.startTime}–${config.endTime}（午休 ${config.lunchDurationMin}min）`,
+      `📅 ${now.getFullYear()}年${now.getMonth() + 1}月：${stats.days} 工作日 × ${dailyHours}h = ${totalHours}h`,
+      ``,
+      `⚙️ 点击打开设置 · Alt+Shift+D 打开时钟面板`,
+    ].join('\n'),
+    true, // supportThemeIcons
+  );
+  statusBarItem.tooltip = md;
 
   let text: string;
   if (config.mode === 'work' && !working) {
