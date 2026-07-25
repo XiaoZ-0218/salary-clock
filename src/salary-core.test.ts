@@ -290,6 +290,21 @@ describe('mergeDayMarks（用户配置覆盖内置）', () => {
     const merged = mergeDayMarks({ '2026-01-01': { name: '元旦' } }, undefined);
     assert.deepEqual(merged, { '2026-01-01': { name: '元旦' } });
   });
+  it('用户配置为空数组 → 返回内置拷贝', () => {
+    const merged = mergeDayMarks({ '2026-01-01': { name: '元旦' } }, []);
+    assert.deepEqual(merged, { '2026-01-01': { name: '元旦' } });
+  });
+  it('name 为纯空格 → 跳过', () => {
+    const merged = mergeDayMarks(
+      {},
+      [{ date: '2027-01-01', name: '   ' }, { date: '2027-01-02', name: '\t\n' }],
+    );
+    assert.equal(Object.keys(merged).length, 0);
+  });
+  it('name 带前后空格 → 保留并 trim', () => {
+    const merged = mergeDayMarks({}, [{ date: '2027-01-01', name: '  元旦  ' }]);
+    assert.equal(merged['2027-01-01']?.name, '元旦');
+  });
   it('用户新增内置不存在的日期 → 合并', () => {
     const merged = mergeDayMarks(
       { '2026-01-01': { name: '元旦' } },
@@ -351,6 +366,14 @@ describe('自定义 holidays/workdays 接入 isWorkDay / calcEarned', () => {
     assert.equal(isWorkDay(sat), false, '基线：周六默认休息');
     const custom: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
     assert.equal(isWorkDay(sat, HOLIDAYS, custom), true, '用户配置后：周六变上班');
+  });
+  it('同日同时出现在 holidays 和 workdays → 节假日优先', () => {
+    const both: { holidays: Record<string, {name: string}>; workdays: Record<string, {name: string}> } = {
+      holidays: { '2026-07-03': { name: '公司假' } },
+      workdays: { '2026-07-03': { name: '调休' } },
+    };
+    const d = new Date(2026, 6, 3);
+    assert.equal(isWorkDay(d, both.holidays, both.workdays), false, '节假日胜出');
   });
   it('calcEarned 用 config.holidays：今天被标为休息日 → 今天不累加（历史未标仍按工作日算）', () => {
     // 把整个 7 月全部标为休息 → 历史与今天都不应累加

@@ -242,7 +242,7 @@ function updateDisplay() {
   const now = new Date();
   const earned = calcEarned(config, now);
   const working = isWorkingTime(config, now);
-  const wd = isWorkDay(now);
+  const wd = isWorkDay(now, config.holidays, config.workdays);
   const showIcon = vscode.workspace.getConfiguration('salaryClock').get<boolean>('showIcon', true);
 
   const prefix = showIcon ? '💰 ' : '';
@@ -313,7 +313,7 @@ function debugInfo() {
   const now = new Date();
   const earned = calcEarned(config, now);
   const working = isWorkingTime(config, now);
-  const wd = isWorkDay(now);
+  const wd = isWorkDay(now, config.holidays, config.workdays);
 
   // 当月统计（与 updateDisplay 共用一处实现）
   const stats = getMonthStats(config, now.getFullYear(), now.getMonth());

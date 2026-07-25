@@ -60,9 +60,9 @@ export function mergeDayMarks(
     if (
       entry && typeof entry === 'object' &&
       typeof entry.date === 'string' && DATE_RE.test(entry.date) &&
-      typeof entry.name === 'string' && entry.name.length > 0
+      typeof entry.name === 'string' && entry.name.trim().length > 0
     ) {
-      merged[entry.date] = { name: entry.name };
+      merged[entry.date] = { name: entry.name.trim() };
     }
   }
   return merged;

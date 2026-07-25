@@ -138,7 +138,7 @@
             "additionalProperties": false
           },
           "default": [],
-          "description": "法定节假日（覆盖内置数据）。格式：[{date:'YYYY-MM-DD', name:'节日名'}]。同一天以本配置为准，内置数据中其它日期仍生效。"
+          "description": "法定节假日（覆盖内置数据）。格式：[{date:'YYYY-MM-DD', name:'节日名'}]。同一天以本配置为准，内置数据中其它日期仍生效。同一天同时出现在节假日和调休中时，节假日优先。"
         },
         "salaryClock.workdays": {
           "type": "array",
@@ -159,7 +159,7 @@
             "additionalProperties": false
           },
           "default": [],
-          "description": "调休上班日（覆盖内置数据）。格式：[{date:'YYYY-MM-DD', name:'调休名'}]。同一天以本配置为准。"
+          "description": "调休上班日（覆盖内置数据）。格式：[{date:'YYYY-MM-DD', name:'调休名'}]。同一天以本配置为准。同一天同时出现在节假日和调休中时，节假日优先（节假日判断在前）。"
         },
         "salaryClock.theme": {
           "type": "string",
