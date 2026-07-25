@@ -20,6 +20,7 @@ import {
   calcMonthWorkDays,
   formatMoney,
   hasHolidayData,
+  mergeDayMarks,
   HOLIDAYS,
   WORKDAYS,
   type SalaryConfig,
@@ -279,5 +280,103 @@ describe('calcMonthWorkDays', () => {
     const r = calcMonthWorkDays(baseWork(), 2026, 6);
     approx(r.hours, r.days * 8);
     assert.ok(r.days > 20 && r.days < 24, `实际 days=${r.days}`);
+  });
+});
+
+// ==================== 用户自定义节假日/调休（settings 合并） ====================
+
+describe('mergeDayMarks（用户配置覆盖内置）', () => {
+  it('无用户配置 → 返回内置拷贝', () => {
+    const merged = mergeDayMarks({ '2026-01-01': { name: '元旦' } }, undefined);
+    assert.deepEqual(merged, { '2026-01-01': { name: '元旦' } });
+  });
+  it('用户新增内置不存在的日期 → 合并', () => {
+    const merged = mergeDayMarks(
+      { '2026-01-01': { name: '元旦' } },
+      [{ date: '2027-01-01', name: '元旦（自定义）' }],
+    );
+    assert.equal(merged['2026-01-01']?.name, '元旦');
+    assert.equal(merged['2027-01-01']?.name, '元旦（自定义）');
+  });
+  it('用户配置与内置同日 → 用户覆盖', () => {
+    const merged = mergeDayMarks(
+      { '2026-02-17': { name: '春节' } },
+      [{ date: '2026-02-17', name: '春节（自定）' }],
+    );
+    assert.equal(merged['2026-02-17']?.name, '春节（自定）');
+  });
+  it('非法日期格式 → 静默跳过', () => {
+    const merged = mergeDayMarks(
+      {},
+      [
+        { date: 'abc', name: '乱码' },
+        { date: '2027/01/01', name: '斜杠分隔' },
+        { date: '2027-1-1', name: '无前导零' },
+        { date: '', name: '空串' },
+        { date: '20260101', name: '无连字符' },
+      ],
+    );
+    assert.equal(Object.keys(merged).length, 0);
+  });
+  it('缺 name 或 name 为空 → 跳过', () => {
+    const merged = mergeDayMarks(
+      {},
+      [
+        { date: '2027-01-01', name: '' },
+        // @ts-expect-error 测试缺字段
+        { date: '2027-01-02' },
+      ],
+    );
+    assert.equal(Object.keys(merged).length, 0);
+  });
+  it('非数组输入 → 当作空配置', () => {
+    // @ts-expect-error 测试坏数据
+    assert.equal(Object.keys(mergeDayMarks({ a: { name: 'x' } }, null)).length, 1);
+    // @ts-expect-error 测试坏数据
+    assert.equal(Object.keys(mergeDayMarks({}, 'not array')).length, 0);
+  });
+});
+
+describe('自定义 holidays/workdays 接入 isWorkDay / calcEarned', () => {
+  it('isWorkDay 用 config.holidays 覆盖内置：把原本是工作日的周五标为休息', () => {
+    // 2026-07-03 是周五（工作日）
+    const fri = new Date(2026, 6, 3);
+    assert.equal(isWorkDay(fri), true, '基线：周五默认工作');
+    const custom: SalaryConfig['holidays'] = { ...HOLIDAYS, '2026-07-03': { name: '公司假' } };
+    assert.equal(isWorkDay(fri, custom, WORKDAYS), false, '用户配置后：周五变休息');
+  });
+  it('isWorkDay 用 config.workdays 覆盖内置：把原本是周末的周六标为上班', () => {
+    // 2026-07-04 是周六（休息日）
+    const sat = new Date(2026, 6, 4);
+    assert.equal(isWorkDay(sat), false, '基线：周六默认休息');
+    const custom: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
+    assert.equal(isWorkDay(sat, HOLIDAYS, custom), true, '用户配置后：周六变上班');
+  });
+  it('calcEarned 用 config.holidays：今天被标为休息日 → 今天不累加（历史未标仍按工作日算）', () => {
+    // 把整个 7 月全部标为休息 → 历史与今天都不应累加
+    const allHoliday: SalaryConfig['holidays'] = {};
+    for (let d = 1; d <= 31; d++) {
+      allHoliday[`2026-07-${String(d).padStart(2, '0')}`] = { name: '全月假' };
+    }
+    const config = baseWork({ holidays: allHoliday });
+    const realEarned = calcEarned(config, new Date(2026, 6, 15, 12, 0));
+    assert.equal(realEarned, 0, `全月标记休息后不应累加：实际 ${realEarned}`);
+  });
+  it('calcEarned 用 config.workdays：周末标为调休后，real 与 stub（全 work）数额有差异', () => {
+    // 把 2026-07-04 周六标为调休上班
+    const config = baseWork({
+      workdays: { ...WORKDAYS, '2026-07-04': { name: '公司调休' } },
+    });
+    const stub = (_d: Date) => true;  // 全 work → 月 31 天
+    const stubEarned = calcEarned(config, new Date(2026, 6, 6, 18, 0), stub);
+    const realEarned = calcEarned(config, new Date(2026, 6, 6, 18, 0));
+    // 实测：stub=3870 (31 天分母时薪低但累加多天) real=4166 (24 天分母时薪高但少 1 周末)
+    // 关键断言：real != stub（说明 config.workdays 实际影响了计算）
+    assert.notEqual(realEarned, stubEarned,
+      `合并 workdays 后应影响计算结果：real(${realEarned}) vs stub(${stubEarned})`);
+    // 时薪 real 比 stub 高：realHourly = 20000/192 = 104.17; stubHourly = 20000/248 = 80.65
+    // 差距 ≈ 23.5 元/小时
+    assert.ok(realEarned > stubEarned,
+      `real 时薪应更高（分母更小）：real=${realEarned} stub=${stubEarned}`);
   });
 });

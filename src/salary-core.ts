@@ -22,6 +22,10 @@ export interface SalaryConfig {
   lunchStart: string;     // "HH:mm"
   mode: 'work' | 'always';
   decimalPlaces: number;
+  /** 用户配置 + 内置合并后的节假日表（可选：未传时 isWorkDay 用内置常量） */
+  holidays?: Record<string, DayMark>;
+  /** 用户配置 + 内置合并后的调休表（可选） */
+  workdays?: Record<string, DayMark>;
 }
 
 /** 单日标记：{ name } */
@@ -29,8 +33,40 @@ export interface DayMark {
   name: string;
 }
 
+/** 用户在 settings.json 配置的节假日/调休条目（带 date 字段） */
+export interface DayMarkEntry {
+  date: string;   // "YYYY-MM-DD"
+  name: string;
+}
+
 /** isWorkDay 的返回：全天工作(true) | 半天('half') | 休息(false) */
 export type WorkDayResult = boolean | 'half';
+
+/** 校验日期字符串格式 YYYY-MM-DD（不依赖 Date 构造，避免时区歧义） */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 合并内置数据与用户在 settings.json 中配置的条目。
+ * - 同一天 key（YYYY-MM-DD）以用户配置为准（覆盖内置）。
+ * - 非法条目（缺 date / 非字符串 name / 日期格式错）静默跳过，避免坏数据击穿整张表。
+ */
+export function mergeDayMarks(
+  builtin: Record<string, DayMark>,
+  userEntries: ReadonlyArray<DayMarkEntry> | undefined,
+): Record<string, DayMark> {
+  const merged: Record<string, DayMark> = { ...builtin };
+  if (!Array.isArray(userEntries)) return merged;
+  for (const entry of userEntries) {
+    if (
+      entry && typeof entry === 'object' &&
+      typeof entry.date === 'string' && DATE_RE.test(entry.date) &&
+      typeof entry.name === 'string' && entry.name.length > 0
+    ) {
+      merged[entry.date] = { name: entry.name };
+    }
+  }
+  return merged;
+}
 
 // ==================== 节假日数据（按年分组 JSON → 展平） ====================
 
@@ -93,15 +129,22 @@ export function parseTime(t: unknown): number | null {
  * 判断某日是工作日、休息日还是半天
  * 返回 true=全天工作, 'half'=半天, false=休息
  * （'half' 目前为可扩展保留分支，见文件顶部说明）
+ *
+ * 可选 holidays / workdays 用于传入「用户配置覆盖内置」后的合并数据；
+ * 不传则用本文件顶部的内置常量（保持向后兼容）。
  */
-export function isWorkDay(date: Date): boolean | 'half' {
+export function isWorkDay(
+  date: Date,
+  holidays: Record<string, DayMark> = HOLIDAYS,
+  workdays: Record<string, DayMark> = WORKDAYS,
+): boolean | 'half' {
   const ds = formatDate(date);
   const dayOfWeek = date.getDay();
 
   // 法定节假日 → 休息
-  if (HOLIDAYS[ds]) return false;
+  if (holidays[ds]) return false;
   // 调休上班 → 工作
-  if (WORKDAYS[ds]) return true;
+  if (workdays[ds]) return true;
   // 周末 → 休息
   if (dayOfWeek === 0 || dayOfWeek === 6) return false;
   // 普通工作日
@@ -130,7 +173,7 @@ export function calcMonthWorkDays(
   c: SalaryConfig,
   year: number,
   month: number,
-  isWorkDayFn: (d: Date) => WorkDayResult = isWorkDay,
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, c.holidays, c.workdays),
 ): { days: number; hours: number } {
   const dim = new Date(year, month + 1, 0).getDate();
   if (c.mode === 'always') {
@@ -189,7 +232,7 @@ function workedMinutesSoFar(
 export function calcEarned(
   c: SalaryConfig,
   now: Date,
-  isWorkDayFn: (d: Date) => WorkDayResult = isWorkDay,
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, c.holidays, c.workdays),
 ): number {
   const monthlySalary = c.monthlySalary;
   if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) return 0;
@@ -254,7 +297,7 @@ export function calcEarned(
  */
 export function isWorkingTime(c: SalaryConfig, now: Date): boolean {
   if (c.mode === 'always') return true;
-  if (isWorkDay(now) === false) return false;
+  if (isWorkDay(now, c.holidays, c.workdays) === false) return false;
 
   const workStart = parseTime(c.startTime);
   const workEnd = parseTime(c.endTime);

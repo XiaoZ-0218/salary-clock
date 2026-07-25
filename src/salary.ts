@@ -1,5 +1,12 @@
 import * as vscode from 'vscode';
-import { SalaryConfig, parseTime } from './salary-core';
+import {
+  SalaryConfig,
+  DayMarkEntry,
+  mergeDayMarks,
+  parseTime,
+  HOLIDAYS,
+  WORKDAYS,
+} from './salary-core';
 
 /**
  * VS Code 侧配置读取层。
@@ -34,6 +41,12 @@ export function getConfig(): SalaryConfig {
 
   const mode = cfg.get<'work' | 'always'>('mode', 'work') === 'always' ? 'always' : 'work';
 
+  // 节假日/调休：用户配置覆盖内置（同 key 优先用户）
+  const userHolidays = cfg.get<DayMarkEntry[]>('holidays', []);
+  const userWorkdays = cfg.get<DayMarkEntry[]>('workdays', []);
+  const holidays = mergeDayMarks(HOLIDAYS, userHolidays);
+  const workdays = mergeDayMarks(WORKDAYS, userWorkdays);
+
   return {
     monthlySalary,
     startTime: validTime(cfg.get<string>('startTime', '09:00'), '09:00'),
@@ -42,5 +55,7 @@ export function getConfig(): SalaryConfig {
     lunchStart: validTime(cfg.get<string>('lunchStart', '12:00'), '12:00'),
     mode,
     decimalPlaces,
+    holidays,
+    workdays,
   };
 }

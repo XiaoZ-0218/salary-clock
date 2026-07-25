@@ -10,8 +10,6 @@ import {
   calcMonthWorkDays,
   getWorkHours,
   getCoveredYears,
-  HOLIDAYS,
-  WORKDAYS,
   SalaryConfig,
 } from './salary';
 
@@ -199,8 +197,8 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
       mode: config.mode,
       decimalPlaces: config.decimalPlaces,
       theme,
-      holidays: HOLIDAYS,
-      workdays: WORKDAYS,
+      holidays: config.holidays ?? {},
+      workdays: config.workdays ?? {},
     });
   } catch (err) {
     // 面板可能已在投递前 dispose；静默忽略即可
