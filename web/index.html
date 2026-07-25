@@ -568,6 +568,7 @@
             theme: 'aurora',
             holidays: {},
             workdays: {},
+            workdayAdjustment: true,  // 总开关：false 时调休表整体失效（外企/弹性工作制）
             decimalPlaces: 4
         };
 
@@ -633,8 +634,10 @@
         // 这样如果同一日期意外同时出现在两个表，扩展与 WebView 行为一致（法定节假日优先）。
         function isWorkDay(date) {
             var ds = formatDate(date);
+            // 节假日优先（内置固定不可编辑）
             if (config.holidays[ds]) return false;
-            if (config.workdays[ds]) return true;
+            // 调休上班（受 workdayAdjustment 总开关控制）
+            if (config.workdayAdjustment && config.workdays[ds]) return true;
             var day = date.getDay();
             if (day === 0 || day === 6) return false;
             return true;
@@ -648,8 +651,9 @@
 
         function calculateMonthWorkDays(year, month) {
             var dim = new Date(year, month + 1, 0).getDate();
+            // always 模式：整月 24h 平摊（与 extension 端 salary-core.ts 一致）
             if (config.mode === 'always') {
-                return { days: dim, hours: dim * getWorkHours() };
+                return { days: dim, hours: dim * 24 };
             }
             var totalDays = 0, totalHours = 0;
             for (var d = 1; d <= dim; d++) {
@@ -971,6 +975,7 @@
                 if (msg.theme) config.theme = msg.theme;
                 if (msg.holidays) config.holidays = msg.holidays;
                 if (msg.workdays) config.workdays = msg.workdays;
+                if (msg.workdayAdjustment !== undefined) config.workdayAdjustment = msg.workdayAdjustment;
                 if (msg.decimalPlaces !== undefined) {
                     config.decimalPlaces = resolveDp(msg.decimalPlaces);
                 }

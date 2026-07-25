@@ -227,7 +227,11 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
  * 仅在配置变更或跨月时才重算，供 updateDisplay 与 debugInfo 共用。
  */
 function getMonthStats(config: SalaryConfig, year: number, month: number): { days: number; hours: number } {
-  const key = `${year}-${month}|${config.mode}|${config.startTime}|${config.endTime}|${config.lunchDurationMin}`;
+  // 缓存 key 必须包含所有会影响 calcMonthWorkDays 结果的字段
+  // —— 漏字段会在配置切换时静默返回旧统计（pi R2-P1-2）。
+  const wa = config.workdayAdjustment === false ? '0' : '1';
+  const wd = config.workdays ? Object.keys(config.workdays).length : 0;
+  const key = `${year}-${month}|${config.mode}|${config.startTime}|${config.endTime}|${config.lunchDurationMin}|wa${wa}|wd${wd}`;
   if (!cachedStats || cachedStats.key !== key) {
     const { days, hours } = calcMonthWorkDays(config, year, month);
     cachedStats = { key, days, hours };
@@ -374,15 +378,15 @@ function parseAddInput(input: string): { date: string; name: string } | undefine
   return { date: `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`, name: trimmedName };
 }
 
-/** 读取用户在 settings.json 中的 holidays / workdays 数组（仅用户自定义） */
-function readUserDayMarks(settingKey: 'holidays' | 'workdays'): DayMarkEntry[] {
-  return vscode.workspace.getConfiguration('salaryClock').get<DayMarkEntry[]>(settingKey, []) ?? [];
+/** 读取用户在 settings.json 中的 workdays 数组（节假日内置固定，无此函数） */
+function readUserWorkdays(): DayMarkEntry[] {
+  return vscode.workspace.getConfiguration('salaryClock').get<DayMarkEntry[]>('workdays', []) ?? [];
 }
 
-/** 写入用户在 settings.json 中的 holidays / workdays 数组 */
-async function writeUserDayMarks(settingKey: 'holidays' | 'workdays', value: DayMarkEntry[]): Promise<void> {
+/** 写入用户在 settings.json 中的 workdays 数组 */
+async function writeUserWorkdays(value: DayMarkEntry[]): Promise<void> {
   await vscode.workspace.getConfiguration('salaryClock')
-    .update(settingKey, value, vscode.ConfigurationTarget.Global);
+    .update('workdays', value, vscode.ConfigurationTarget.Global);
 }
 
 /**
@@ -406,7 +410,7 @@ async function promptAddWorkday(): Promise<void> {
   const parsed = parseAddInput(input);
   if (!parsed) return;
 
-  const userList = readUserDayMarks('workdays');
+  const userList = readUserWorkdays();
   if (userList.some((e) => e.date === parsed.date)) {
     vscode.window.showWarningMessage(`调休 ${parsed.date} 已在用户配置中，无需重复添加`);
     return;
@@ -422,7 +426,7 @@ async function promptAddWorkday(): Promise<void> {
   }
 
   userList.push({ date: parsed.date, name: parsed.name });
-  await writeUserDayMarks('workdays', userList);
+  await writeUserWorkdays(userList);
   vscode.window.showInformationMessage(`已添加调休 ${parsed.date} ${parsed.name} ✅`);
 }
 
@@ -431,7 +435,7 @@ async function promptAddWorkday(): Promise<void> {
  * 内置未被用户覆盖的不显示（提示"内置不可通过此命令删除"）。
  */
 async function promptRemoveWorkday(): Promise<void> {
-  const userList = readUserDayMarks('workdays');
+  const userList = readUserWorkdays();
   if (userList.length === 0) {
     vscode.window.showInformationMessage('用户配置中没有调休，内置调休不可通过此命令删除');
     return;
@@ -443,7 +447,10 @@ async function promptRemoveWorkday(): Promise<void> {
     .map((e) => ({
       label: `${e.date}  ${e.name}`,
       date: e.date,
-      description: '用户配置 · 删除后可能恢复为内置定义',
+      // 区分：覆盖内置 vs 纯自定义，删除影响不同
+      description: BUILTIN_WORKDAYS[e.date]
+        ? '用户覆盖 · 删除后恢复内置定义'
+        : '用户自定义 · 删除后永久移除',
     }));
 
   const picked = await vscode.window.showQuickPick(picks, {
@@ -453,6 +460,6 @@ async function promptRemoveWorkday(): Promise<void> {
   if (!picked) return;
 
   const newList = userList.filter((e) => e.date !== picked.date);
-  await writeUserDayMarks('workdays', newList);
+  await writeUserWorkdays(newList);
   vscode.window.showInformationMessage(`已删除调休 ${picked.date} 🗑`);
 }
