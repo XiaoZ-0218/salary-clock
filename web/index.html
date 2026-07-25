@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#101422">
+    <!--
+        Content-Security-Policy:
+        当前脚本/样式全部内联，因此使用 'unsafe-inline'（nonce 方案需要扩展端注入 nonce 到 HTML，相对繁琐，
+        本实现先保简洁，把所有脚本/样式全部内联）。img-src data: 仅允许 data URI 图片。
+        后续如需外链资源或进一步收紧，应改为扩展端生成 nonce 并注入 <script nonce="..."> 中。
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
     <title>哄我上班 😽</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -553,14 +560,15 @@
         // ==================== 配置（默认值，会被 postMessage 覆盖）====================
         let config = {
             monthlySalary: 20000,
-            startTime: '10:00',
-            endTime: '18:30',
-            lunchDurationMin: 120,
+            startTime: '09:00',
+            endTime: '18:00',
+            lunchDurationMin: 60,
             lunchStart: '12:00',
             mode: 'work',
             theme: 'aurora',
             holidays: {},
-            workdays: {}
+            workdays: {},
+            decimalPlaces: 4
         };
 
         // ==================== 主题配置 ====================
@@ -593,15 +601,40 @@
             var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
             return y + '-' + m + '-' + day;
         }
-        function formatMoney(n) { return '¥' + n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
-        function formatMoneyShort(n) { return '¥' + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        // dp 取值规则：参数 > config.decimalPlaces > 4（兜底）；clamp 到 [0, 6]
+        function resolveDp(dp) {
+            var v = (dp !== undefined && dp !== null) ? dp : config.decimalPlaces;
+            if (v === undefined || v === null || !isFinite(v)) v = 4;
+            if (v < 0) v = 0;
+            if (v > 6) v = 6;
+            return v | 0;
+        }
+        function formatMoney(n, dp) {
+            return '¥' + n.toLocaleString('zh-CN', { minimumFractionDigits: resolveDp(dp), maximumFractionDigits: resolveDp(dp) });
+        }
+        // 副指标用 2 位小数（金额较大，多位无意义；保留可显式覆盖）
+        function formatMoneyShort(n, dp) {
+            return '¥' + n.toLocaleString('zh-CN', { minimumFractionDigits: resolveDp(dp !== undefined ? dp : 2), maximumFractionDigits: resolveDp(dp !== undefined ? dp : 2) });
+        }
         function parseTime(ts) { var parts = ts.split(':'); return parseInt(parts[0]) * 60 + parseInt(parts[1]); }
+        // 安全 parseTime：非法输入返回 null
+        function parseTimeSafe(ts) {
+            if (typeof ts !== 'string') return null;
+            var parts = ts.split(':');
+            if (parts.length !== 2) return null;
+            var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+            if (!isFinite(h) || !isFinite(m)) return null;
+            if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+            return h * 60 + m;
+        }
 
         // ==================== 工作日判断 ====================
+        // 优先级与 extension 端 src/salary.ts 对齐：先 HOLIDAYS → false；再 WORKDAYS → true。
+        // 这样如果同一日期意外同时出现在两个表，扩展与 WebView 行为一致（法定节假日优先）。
         function isWorkDay(date) {
             var ds = formatDate(date);
-            if (config.workdays[ds]) return true;
             if (config.holidays[ds]) return false;
+            if (config.workdays[ds]) return true;
             var day = date.getDay();
             if (day === 0 || day === 6) return false;
             return true;
@@ -626,23 +659,89 @@
             return { days: totalDays, hours: totalHours };
         }
 
-        // ==================== 核心计算 ====================
-        function getEarnedAtTime(checkTime) {
-            var monthlySalary = config.monthlySalary;
-            if (!monthlySalary) return 0;
+        // ==================== 月度缓存（O(1) 增量已赚金额）====================
+        // _monthStats = {
+        //   key: 'YYYY-MM',
+        //   year, month,
+        //   totalDays, totalHours,
+        //   workHours, hourlyRate,
+        //   dailyEarned,        // dailyRate = hourlyRate * workHours
+        //   passedDaysEarned,   // 本月到「昨天」为止的累计
+        //   lastTodayDate       // 跨日时增量更新 passedDaysEarned
+        // }
+        var _monthStats = null;
+        var _lastMonthKey = null;
+        var _lastSecondTick = -1;
+
+        function getMonthKey(date) {
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        }
+
+        function invalidateMonthStats() { _monthStats = null; }
+
+        function ensureMonthStats(now) {
+            var key = getMonthKey(now);
+            if (_monthStats && _monthStats.key === key) return _monthStats;
+
+            var year = now.getFullYear();
+            var month = now.getMonth();
+            var result = calculateMonthWorkDays(year, month);
             var workHours = getWorkHours();
-            if (workHours <= 0) return 0;
-            var result = calculateMonthWorkDays(checkTime.getFullYear(), checkTime.getMonth());
-            var totalWorkHours = result.hours;
-            if (totalWorkHours <= 0) return 0;
-            var hourlyRate = monthlySalary / totalWorkHours;
+            var monthlySalary = config.monthlySalary;
+            var hourlyRate = (monthlySalary > 0 && result.hours > 0 && workHours > 0)
+                ? monthlySalary / result.hours
+                : 0;
+
+            // 缓存「今天」之前的累计（与 extension 端语义一致：today 之后另算）
+            var today = now.getDate();
+            var passedDaysEarned = 0;
+            if (hourlyRate > 0 && config.mode === 'work') {
+                for (var d = 1; d < today; d++) {
+                    var date = new Date(year, month, d);
+                    if (isWorkDay(date)) passedDaysEarned += hourlyRate * workHours;
+                }
+            }
+
+            _monthStats = {
+                key: key,
+                year: year,
+                month: month,
+                totalDays: result.days,
+                totalHours: result.hours,
+                workHours: workHours,
+                hourlyRate: hourlyRate,
+                dailyEarned: (hourlyRate > 0 ? hourlyRate * workHours : 0),
+                passedDaysEarned: passedDaysEarned,
+                lastTodayDate: today
+            };
+            return _monthStats;
+        }
+
+        // O(1) 增量：仅算「今天」从上班起到 now 的累计；passedDaysEarned 走缓存
+        function todayEarned(now) {
+            var stats = ensureMonthStats(now);
+            if (!stats || stats.hourlyRate <= 0) return 0;
 
             if (config.mode === 'always') {
-                var dim = new Date(checkTime.getFullYear(), checkTime.getMonth() + 1, 0).getDate();
+                // 全天平摊：直接用真实毫秒差分摊，与 fix-backend 思想一致
+                var dim = new Date(stats.year, stats.month + 1, 0).getDate();
                 var totalSeconds = dim * 24 * 3600;
-                var perSecond = monthlySalary / totalSeconds;
-                var elapsed = (checkTime - new Date(checkTime.getFullYear(), checkTime.getMonth(), 1)) / 1000;
+                var perSecond = config.monthlySalary / totalSeconds;
+                var monthStart = new Date(stats.year, stats.month, 1).getTime();
+                var elapsed = (now.getTime() - monthStart) / 1000;
                 return perSecond * elapsed;
+            }
+
+            // work 模式：跨日则更新 passedDaysEarned
+            var today = now.getDate();
+            if (today !== stats.lastTodayDate) {
+                var newPassed = 0;
+                for (var d2 = 1; d2 < today; d2++) {
+                    var dd = new Date(stats.year, stats.month, d2);
+                    if (isWorkDay(dd)) newPassed += stats.hourlyRate * stats.workHours;
+                }
+                stats.passedDaysEarned = newPassed;
+                stats.lastTodayDate = today;
             }
 
             var workStart = parseTime(config.startTime), workEnd = parseTime(config.endTime);
@@ -651,31 +750,25 @@
                 lunchStartMin = parseTime(config.lunchStart);
                 lunchEndMin = lunchStartMin + config.lunchDurationMin;
             }
-            var year = checkTime.getFullYear(), month = checkTime.getMonth(), today = checkTime.getDate();
-            var currentTime = checkTime.getHours() * 60 + checkTime.getMinutes();
-            var currentSec = checkTime.getSeconds() + checkTime.getMilliseconds() / 1000;
+            var currentTime = now.getHours() * 60 + now.getMinutes();
+            var currentSec = now.getSeconds() + now.getMilliseconds() / 1000;
             var currentTotalMin = currentTime + currentSec / 60;
-            var earned = 0;
-            for (var d = 1; d < today; d++) {
-                var date = new Date(year, month, d);
-                if (isWorkDay(date)) earned += hourlyRate * workHours;
-            }
-            var todayDate = new Date(year, month, today);
+
+            var todayDate = new Date(stats.year, stats.month, today);
+            var todayInc = 0;
             if (isWorkDay(todayDate)) {
-                if (currentTotalMin < workStart) {
-                    // 还没到上班时间
-                } else if (currentTotalMin >= workEnd) {
-                    earned += hourlyRate * workHours;
-                } else {
-                    var workedMin = (currentTotalMin - workStart);
+                if (currentTotalMin >= workEnd) {
+                    todayInc = stats.dailyEarned;
+                } else if (currentTotalMin >= workStart) {
+                    var workedMin = currentTotalMin - workStart;
                     if (lunchEndMin > lunchStartMin) {
                         if (currentTotalMin > lunchEndMin) workedMin -= (lunchEndMin - lunchStartMin);
                         else if (currentTotalMin > lunchStartMin) workedMin -= (currentTotalMin - lunchStartMin);
                     }
-                    earned += hourlyRate * (workedMin / 60);
+                    todayInc = stats.hourlyRate * (workedMin / 60);
                 }
             }
-            return earned;
+            return stats.passedDaysEarned + todayInc;
         }
 
         // ==================== 倒计时 + 激励语 ====================
@@ -707,7 +800,14 @@
             if (!isWorkDay(now)) return false;
             var workStart = parseTime(config.startTime), workEnd = parseTime(config.endTime);
             var currentMin = now.getHours() * 60 + now.getMinutes();
-            return currentMin >= workStart && currentMin < workEnd;
+            if (currentMin < workStart || currentMin >= workEnd) return false;
+            // 午休区间不算"赚钱中"（与 fix-backend / extension 端 isWorkingTime 同步）
+            if (config.lunchDurationMin > 0) {
+                var lunchStartMin = parseTime(config.lunchStart);
+                var lunchEndMin = lunchStartMin + config.lunchDurationMin;
+                if (lunchEndMin > lunchStartMin && currentMin >= lunchStartMin && currentMin < lunchEndMin) return false;
+            }
+            return true;
         }
 
         function getNextWorkStart(fromDate) {
@@ -749,64 +849,112 @@
         // ==================== 动画循环 ====================
         var clockRunning = false;
         var lastClockValue = 0;
+        var lastClockText = '';
+        var lastClockOpacity = -1;
+        var _displayMode = null; // 'countdown' | 'work' — 控制 .clock-display / #countdownBox 切换
+
+        // 仅当字符串实际变化时才写入 textContent，避免每帧触发 reflow/repaint
+        function setText(el, value) {
+            if (el && el.textContent !== value) el.textContent = value;
+        }
+        function setClass(el, cls, on) {
+            if (!el) return;
+            if (on) { if (!el.classList.contains(cls)) el.classList.add(cls); }
+            else { if (el.classList.contains(cls)) el.classList.remove(cls); }
+        }
+        function setDisplay(node, value) {
+            if (!node || node.style.display === value) return;
+            node.style.display = value;
+        }
+
+        function applyDisplayMode(mode) {
+            if (_displayMode === mode) return;
+            _displayMode = mode;
+            var clockDisplay = document.querySelector('.clock-display');
+            var countdownBox = document.getElementById('countdownBox');
+            if (mode === 'countdown') {
+                setDisplay(clockDisplay, 'none');
+                setClass(countdownBox, 'hidden', false);
+            } else {
+                setDisplay(clockDisplay, '');
+                setClass(countdownBox, 'hidden', true);
+            }
+        }
 
         function animateClock() {
             if (!clockRunning) return;
+            requestAnimationFrame(animateClock);
+
             var now = new Date();
+            var currentMonthKey = getMonthKey(now);
+
+            // 跨月检测：跨月时刷新副指标（updateClockSub 走月度缓存）
+            if (_lastMonthKey !== null && _lastMonthKey !== currentMonthKey) {
+                updateClockSub();
+            }
+            _lastMonthKey = currentMonthKey;
+
             var inWork = isInWorkTime(now);
-            var clockDisplay = document.querySelector('.clock-display');
-            var countdownBox = document.getElementById('countdownBox');
 
             if (!inWork && config.mode === 'work') {
-                clockDisplay.style.display = 'none';
-                countdownBox.classList.remove('hidden');
+                applyDisplayMode('countdown');
+                // 1Hz 节流：非工作时段倒计时/激励语无需 60fps
+                var sec = now.getSeconds();
+                if (sec === _lastSecondTick) return;
+                _lastSecondTick = sec;
                 var nextStart = getNextWorkStart(now);
-                if (nextStart) {
-                    document.getElementById('countdownTime').textContent = formatCountdown(nextStart - now);
-                } else {
-                    document.getElementById('countdownTime').textContent = "找不到下一个工作日 😅";
-                }
-                document.getElementById('countdownQuote').textContent = getQuote(now);
-            } else {
-                clockDisplay.style.display = '';
-                countdownBox.classList.add('hidden');
-                var earned = getEarnedAtTime(now);
-                var el = document.getElementById('clockAmount');
-                el.textContent = formatMoney(earned);
-                if (earned > lastClockValue) { el.style.opacity = 1; } else { el.style.opacity = 0.95; }
-                lastClockValue = earned;
+                setText(document.getElementById('countdownTime'), nextStart ? formatCountdown(nextStart - now) : "找不到下一个工作日 😅");
+                setText(document.getElementById('countdownQuote'), getQuote(now));
+                return;
             }
-            requestAnimationFrame(animateClock);
+
+            // 工作时段 / always 模式：高频更新金额
+            applyDisplayMode('work');
+            var earned = todayEarned(now);
+            var moneyStr = formatMoney(earned);
+            var el = document.getElementById('clockAmount');
+            if (lastClockText !== moneyStr) {
+                el.textContent = moneyStr;
+                lastClockText = moneyStr;
+            }
+            var opacity = earned > lastClockValue ? 1 : 0.95;
+            if (opacity !== lastClockOpacity) {
+                el.style.opacity = opacity;
+                lastClockOpacity = opacity;
+            }
+            lastClockValue = earned;
         }
 
         function updateClockSub() {
             var monthlySalary = config.monthlySalary;
-            var workHours = getWorkHours();
             var now = new Date();
-            var result = calculateMonthWorkDays(now.getFullYear(), now.getMonth());
-            var workDays = result.days;
-            var totalWorkHours = result.hours;
-            if (monthlySalary && totalWorkHours > 0) {
-                var hourlyRate = monthlySalary / totalWorkHours;
-                document.getElementById('clockDaily').textContent = formatMoneyShort(hourlyRate * workHours);
-                document.getElementById('clockHourly').textContent = formatMoneyShort(hourlyRate);
-                var dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            var stats = ensureMonthStats(now);
+            var clockDaily = document.getElementById('clockDaily');
+            var clockHourly = document.getElementById('clockHourly');
+            var clockLeft = document.getElementById('clockLeft');
+            var clockLeftLabel = document.getElementById('clockLeftLabel');
+
+            if (monthlySalary && stats.hourlyRate > 0) {
+                setText(clockDaily, formatMoneyShort(stats.hourlyRate * stats.workHours));
+                setText(clockHourly, formatMoneyShort(stats.hourlyRate));
+                var dim = new Date(stats.year, stats.month + 1, 0).getDate();
                 if (config.mode === 'always') {
-                    document.getElementById('clockLeftLabel').textContent = '本月剩余天数';
-                    document.getElementById('clockLeft').textContent = dim - now.getDate() + 1;
+                    setText(clockLeftLabel, '本月剩余天数');
+                    setText(clockLeft, String(dim - now.getDate() + 1));
                 } else {
+                    // 剩余工作日：仍然要扫剩余天数（依赖缓存的 year/month，省去重算整月）
                     var remaining = 0;
                     for (var d = now.getDate(); d <= dim; d++) {
-                        var date = new Date(now.getFullYear(), now.getMonth(), d);
+                        var date = new Date(stats.year, stats.month, d);
                         if (isWorkDay(date)) remaining++;
                     }
-                    document.getElementById('clockLeftLabel').textContent = '剩余工作日';
-                    document.getElementById('clockLeft').textContent = remaining;
+                    setText(clockLeftLabel, '剩余工作日');
+                    setText(clockLeft, String(remaining));
                 }
             } else {
-                document.getElementById('clockDaily').textContent = '-';
-                document.getElementById('clockHourly').textContent = '-';
-                document.getElementById('clockLeft').textContent = '-';
+                setText(clockDaily, '-');
+                setText(clockHourly, '-');
+                setText(clockLeft, '-');
             }
         }
 
@@ -823,7 +971,12 @@
                 if (msg.theme) config.theme = msg.theme;
                 if (msg.holidays) config.holidays = msg.holidays;
                 if (msg.workdays) config.workdays = msg.workdays;
+                if (msg.decimalPlaces !== undefined) {
+                    config.decimalPlaces = resolveDp(msg.decimalPlaces);
+                }
                 applyTheme();
+                // 任何配置变化都强制月度缓存重算（薪资/工时/节假日/调休变更都可能改变 hourlyRate 或工作日分布）
+                invalidateMonthStats();
                 updateClockSub();
             }
         });
