@@ -53,6 +53,26 @@
         "command": "salaryClock.debug",
         "title": "薪资时钟: 输出调试信息",
         "icon": "$(debug)"
+      },
+      {
+        "command": "salaryClock.addHoliday",
+        "title": "薪资时钟: 添加节假日",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "salaryClock.removeHoliday",
+        "title": "薪资时钟: 删除节假日",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "salaryClock.addWorkday",
+        "title": "薪资时钟: 添加调休",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "salaryClock.removeWorkday",
+        "title": "薪资时钟: 删除调休",
+        "icon": "$(trash)"
       }
     ],
     "keybindings": [

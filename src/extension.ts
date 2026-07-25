@@ -10,7 +10,10 @@ import {
   calcMonthWorkDays,
   getWorkHours,
   getCoveredYears,
-  SalaryConfig,
+  HOLIDAYS as BUILTIN_HOLIDAYS,
+  WORKDAYS as BUILTIN_WORKDAYS,
+  type SalaryConfig,
+  type DayMarkEntry,
 } from './salary';
 
 let statusBarItem: vscode.StatusBarItem;
@@ -84,6 +87,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('salaryClock.debug', () => {
       debugInfo();
     })
+  );
+
+  // 命令：节假日/调休 图形化增删（推荐使用，JSON 编辑器为 power user 后门）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.addHoliday', () => promptAddDayMark('holiday')),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.removeHoliday', () => promptRemoveDayMark('holiday')),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.addWorkday', () => promptAddDayMark('workday')),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('salaryClock.removeWorkday', () => promptRemoveDayMark('workday')),
   );
 
   // 配置变更监听
@@ -338,4 +355,115 @@ function debugInfo() {
   outputChannel.append(lines.join('\n'));
   outputChannel.show(true);
   vscode.window.showInformationMessage(`调试信息已输出到"薪资时钟"面板 📋`);
+}
+
+// ==================== 节假日/调休 图形化编辑 ====================
+
+const DATE_RE_INPUT = /^(\d{4})-(\d{2})-(\d{2})\s+(.+)$/;
+
+/**
+ * 解析用户输入 "YYYY-MM-DD 名称"，返回 {date, name} 或 undefined（输入取消/格式错）。
+ * 校验日期格式 + 名称非空。
+ */
+function parseAddInput(input: string): { date: string; name: string } | undefined {
+  const m = DATE_RE_INPUT.exec(input.trim());
+  if (!m) return undefined;
+  const [, y, mo, d, name] = m;
+  const yyyy = Number(y), mm = Number(mo), dd = Number(d);
+  // 用 Date 反查校验日期合法性（处理 2026-02-30 这类）
+  const dt = new Date(yyyy, mm - 1, dd);
+  if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return undefined;
+  const trimmedName = name.trim();
+  if (!trimmedName) return undefined;
+  return { date: `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`, name: trimmedName };
+}
+
+/** 读取用户在 settings.json 中的 holidays / workdays 数组（仅用户自定义） */
+function readUserDayMarks(settingKey: 'holidays' | 'workdays'): DayMarkEntry[] {
+  return vscode.workspace.getConfiguration('salaryClock').get<DayMarkEntry[]>(settingKey, []) ?? [];
+}
+
+/** 写入用户在 settings.json 中的 holidays / workdays 数组 */
+async function writeUserDayMarks(settingKey: 'holidays' | 'workdays', value: DayMarkEntry[]): Promise<void> {
+  await vscode.workspace.getConfiguration('salaryClock')
+    .update(settingKey, value, vscode.ConfigurationTarget.Global);
+}
+
+/**
+ * 添加节假日/调休：弹 InputBox 输入 "YYYY-MM-DD 名称"，回车写入用户配置。
+ * 已存在则提示「已存在」，不会重复添加。
+ */
+async function promptAddDayMark(kind: 'holiday' | 'workday'): Promise<void> {
+  const settingKey: 'holidays' | 'workdays' = kind === 'holiday' ? 'holidays' : 'workdays';
+  const label = kind === 'holiday' ? '节假日' : '调休';
+  const builtinFlat = kind === 'holiday' ? BUILTIN_HOLIDAYS : BUILTIN_WORKDAYS;
+
+  const input = await vscode.window.showInputBox({
+    title: `添加${label}`,
+    prompt: `格式：YYYY-MM-DD ${label}名（例：2027-01-01 元旦）`,
+    placeHolder: '2027-01-01 元旦',
+    validateInput: (v) => {
+      if (!v.trim()) return '不能为空';
+      const parsed = parseAddInput(v);
+      if (!parsed) return '格式错误：应为 YYYY-MM-DD 名称（注意空格分隔）';
+      return undefined;
+    },
+  });
+  if (!input) return; // 用户取消
+
+  const parsed = parseAddInput(input);
+  if (!parsed) return; // 不应到这里（validateInput 已拦）
+
+  const userList = readUserDayMarks(settingKey);
+  if (userList.some((e) => e.date === parsed.date)) {
+    vscode.window.showWarningMessage(`${label} ${parsed.date} 已在用户配置中，无需重复添加`);
+    return;
+  }
+  // 提示用户配置将覆盖内置同名条目
+  if (builtinFlat[parsed.date]) {
+    const choice = await vscode.window.showInformationMessage(
+      `${parsed.date} 已存在于内置${label}「${builtinFlat[parsed.date].name}」，继续将以你输入的名称覆盖`,
+      { modal: true },
+      '覆盖',
+    );
+    if (choice !== '覆盖') return;
+  }
+
+  userList.push({ date: parsed.date, name: parsed.name });
+  await writeUserDayMarks(settingKey, userList);
+  vscode.window.showInformationMessage(`已添加${label} ${parsed.date} ${parsed.name} ✅`);
+}
+
+/**
+ * 删除节假日/调休：QuickPick 列出"用户配置 + 覆盖内置"的所有条目，用户选一个从用户配置移除。
+ * 内置未被用户覆盖的不显示（提示"内置不可通过此命令删除，需在源码中调整"）。
+ */
+async function promptRemoveDayMark(kind: 'holiday' | 'workday'): Promise<void> {
+  const settingKey: 'holidays' | 'workdays' = kind === 'holiday' ? 'holidays' : 'workdays';
+  const label = kind === 'holiday' ? '节假日' : '调休';
+
+  const userList = readUserDayMarks(settingKey);
+  if (userList.length === 0) {
+    vscode.window.showInformationMessage(`用户配置中没有${label}，内置${label}不可通过此命令删除`);
+    return;
+  }
+
+  const picks = userList
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => ({
+      label: `${e.date}  ${e.name}`,
+      date: e.date,
+      description: '用户配置 · 删除后可能恢复为内置定义',
+    }));
+
+  const picked = await vscode.window.showQuickPick(picks, {
+    title: `删除${label}`,
+    placeHolder: '选择要删除的条目',
+  });
+  if (!picked) return;
+
+  const newList = userList.filter((e) => e.date !== picked.date);
+  await writeUserDayMarks(settingKey, newList);
+  vscode.window.showInformationMessage(`已删除${label} ${picked.date} 🗑`);
 }
