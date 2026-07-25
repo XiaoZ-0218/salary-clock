@@ -10,7 +10,7 @@ import {
   calcMonthWorkDays,
   getWorkHours,
   getCoveredYears,
-  HOLIDAYS as BUILTIN_HOLIDAYS,
+  HOLIDAYS,
   WORKDAYS as BUILTIN_WORKDAYS,
   type SalaryConfig,
   type DayMarkEntry,
@@ -89,18 +89,12 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // 命令：节假日/调休 图形化增删（推荐使用，JSON 编辑器为 power user 后门）
+  // 命令：调休 图形化增删（节假日由内置固定，不暴露用户编辑）
   context.subscriptions.push(
-    vscode.commands.registerCommand('salaryClock.addHoliday', () => promptAddDayMark('holiday')),
+    vscode.commands.registerCommand('salaryClock.addWorkday', () => promptAddWorkday()),
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand('salaryClock.removeHoliday', () => promptRemoveDayMark('holiday')),
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('salaryClock.addWorkday', () => promptAddDayMark('workday')),
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('salaryClock.removeWorkday', () => promptRemoveDayMark('workday')),
+    vscode.commands.registerCommand('salaryClock.removeWorkday', () => promptRemoveWorkday()),
   );
 
   // 配置变更监听
@@ -215,8 +209,10 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
       mode: config.mode,
       decimalPlaces: config.decimalPlaces,
       theme,
-      holidays: config.holidays ?? {},
+      // 节假日内置固定不暴露编辑；调休 = 内置 + 用户配置合并
+      holidays: HOLIDAYS,
       workdays: config.workdays ?? {},
+      workdayAdjustment: config.workdayAdjustment ?? true,
     });
   } catch (err) {
     // 面板可能已在投递前 dispose；静默忽略即可
@@ -260,7 +256,7 @@ function updateDisplay() {
   const now = new Date();
   const earned = calcEarned(config, now);
   const working = isWorkingTime(config, now);
-  const wd = isWorkDay(now, config.holidays, config.workdays);
+  const wd = isWorkDay(now, HOLIDAYS, config.workdays, config.workdayAdjustment ?? true);
   const showIcon = vscode.workspace.getConfiguration('salaryClock').get<boolean>('showIcon', true);
 
   const prefix = showIcon ? '💰 ' : '';
@@ -333,7 +329,7 @@ function debugInfo() {
   const now = new Date();
   const earned = calcEarned(config, now);
   const working = isWorkingTime(config, now);
-  const wd = isWorkDay(now, config.holidays, config.workdays);
+  const wd = isWorkDay(now, HOLIDAYS, config.workdays, config.workdayAdjustment ?? true);
 
   // 当月统计（与 updateDisplay 共用一处实现）
   const stats = getMonthStats(config, now.getFullYear(), now.getMonth());
@@ -390,18 +386,14 @@ async function writeUserDayMarks(settingKey: 'holidays' | 'workdays', value: Day
 }
 
 /**
- * 添加节假日/调休：弹 InputBox 输入 "YYYY-MM-DD 名称"，回车写入用户配置。
- * 已存在则提示「已存在」，不会重复添加。
+ * 添加调休：弹 InputBox 输入 "YYYY-MM-DD 名称"，回车写入用户配置。
+ * 节假日由内置固定，不暴露用户编辑。
  */
-async function promptAddDayMark(kind: 'holiday' | 'workday'): Promise<void> {
-  const settingKey: 'holidays' | 'workdays' = kind === 'holiday' ? 'holidays' : 'workdays';
-  const label = kind === 'holiday' ? '节假日' : '调休';
-  const builtinFlat = kind === 'holiday' ? BUILTIN_HOLIDAYS : BUILTIN_WORKDAYS;
-
+async function promptAddWorkday(): Promise<void> {
   const input = await vscode.window.showInputBox({
-    title: `添加${label}`,
-    prompt: `格式：YYYY-MM-DD ${label}名（例：2027-01-01 元旦）`,
-    placeHolder: '2027-01-01 元旦',
+    title: '添加调休',
+    prompt: '格式：YYYY-MM-DD 调休名（例：2027-01-02 元旦调休）',
+    placeHolder: '2027-01-02 元旦调休',
     validateInput: (v) => {
       if (!v.trim()) return '不能为空';
       const parsed = parseAddInput(v);
@@ -412,17 +404,17 @@ async function promptAddDayMark(kind: 'holiday' | 'workday'): Promise<void> {
   if (!input) return; // 用户取消
 
   const parsed = parseAddInput(input);
-  if (!parsed) return; // 不应到这里（validateInput 已拦）
+  if (!parsed) return;
 
-  const userList = readUserDayMarks(settingKey);
+  const userList = readUserDayMarks('workdays');
   if (userList.some((e) => e.date === parsed.date)) {
-    vscode.window.showWarningMessage(`${label} ${parsed.date} 已在用户配置中，无需重复添加`);
+    vscode.window.showWarningMessage(`调休 ${parsed.date} 已在用户配置中，无需重复添加`);
     return;
   }
   // 提示用户配置将覆盖内置同名条目
-  if (builtinFlat[parsed.date]) {
+  if (BUILTIN_WORKDAYS[parsed.date]) {
     const choice = await vscode.window.showInformationMessage(
-      `${parsed.date} 已存在于内置${label}「${builtinFlat[parsed.date].name}」，继续将以你输入的名称覆盖`,
+      `${parsed.date} 已存在于内置调休「${BUILTIN_WORKDAYS[parsed.date].name}」，继续将以你输入的名称覆盖`,
       { modal: true },
       '覆盖',
     );
@@ -430,21 +422,18 @@ async function promptAddDayMark(kind: 'holiday' | 'workday'): Promise<void> {
   }
 
   userList.push({ date: parsed.date, name: parsed.name });
-  await writeUserDayMarks(settingKey, userList);
-  vscode.window.showInformationMessage(`已添加${label} ${parsed.date} ${parsed.name} ✅`);
+  await writeUserDayMarks('workdays', userList);
+  vscode.window.showInformationMessage(`已添加调休 ${parsed.date} ${parsed.name} ✅`);
 }
 
 /**
- * 删除节假日/调休：QuickPick 列出"用户配置 + 覆盖内置"的所有条目，用户选一个从用户配置移除。
- * 内置未被用户覆盖的不显示（提示"内置不可通过此命令删除，需在源码中调整"）。
+ * 删除调休：QuickPick 列出用户配置的所有条目，选一项从用户配置移除。
+ * 内置未被用户覆盖的不显示（提示"内置不可通过此命令删除"）。
  */
-async function promptRemoveDayMark(kind: 'holiday' | 'workday'): Promise<void> {
-  const settingKey: 'holidays' | 'workdays' = kind === 'holiday' ? 'holidays' : 'workdays';
-  const label = kind === 'holiday' ? '节假日' : '调休';
-
-  const userList = readUserDayMarks(settingKey);
+async function promptRemoveWorkday(): Promise<void> {
+  const userList = readUserDayMarks('workdays');
   if (userList.length === 0) {
-    vscode.window.showInformationMessage(`用户配置中没有${label}，内置${label}不可通过此命令删除`);
+    vscode.window.showInformationMessage('用户配置中没有调休，内置调休不可通过此命令删除');
     return;
   }
 
@@ -458,12 +447,12 @@ async function promptRemoveDayMark(kind: 'holiday' | 'workday'): Promise<void> {
     }));
 
   const picked = await vscode.window.showQuickPick(picks, {
-    title: `删除${label}`,
+    title: '删除调休',
     placeHolder: '选择要删除的条目',
   });
   if (!picked) return;
 
   const newList = userList.filter((e) => e.date !== picked.date);
-  await writeUserDayMarks(settingKey, newList);
-  vscode.window.showInformationMessage(`已删除${label} ${picked.date} 🗑`);
+  await writeUserDayMarks('workdays', newList);
+  vscode.window.showInformationMessage(`已删除调休 ${picked.date} 🗑`);
 }

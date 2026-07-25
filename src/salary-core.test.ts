@@ -352,38 +352,52 @@ describe('mergeDayMarks（用户配置覆盖内置）', () => {
   });
 });
 
-describe('自定义 holidays/workdays 接入 isWorkDay / calcEarned', () => {
-  it('isWorkDay 用 config.holidays 覆盖内置：把原本是工作日的周五标为休息', () => {
-    // 2026-07-03 是周五（工作日）
-    const fri = new Date(2026, 6, 3);
-    assert.equal(isWorkDay(fri), true, '基线：周五默认工作');
-    const custom: SalaryConfig['holidays'] = { ...HOLIDAYS, '2026-07-03': { name: '公司假' } };
-    assert.equal(isWorkDay(fri, custom, WORKDAYS), false, '用户配置后：周五变休息');
-  });
-  it('isWorkDay 用 config.workdays 覆盖内置：把原本是周末的周六标为上班', () => {
+describe('workdays 接入 + workdayAdjustment 开关（节假日固定不可编辑）', () => {
+  it('isWorkDay 用 config.workdays 把周六标为上班', () => {
     // 2026-07-04 是周六（休息日）
     const sat = new Date(2026, 6, 4);
     assert.equal(isWorkDay(sat), false, '基线：周六默认休息');
     const custom: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
     assert.equal(isWorkDay(sat, HOLIDAYS, custom), true, '用户配置后：周六变上班');
   });
-  it('同日同时出现在 holidays 和 workdays → 节假日优先', () => {
-    const both: { holidays: Record<string, {name: string}>; workdays: Record<string, {name: string}> } = {
-      holidays: { '2026-07-03': { name: '公司假' } },
-      workdays: { '2026-07-03': { name: '调休' } },
-    };
-    const d = new Date(2026, 6, 3);
-    assert.equal(isWorkDay(d, both.holidays, both.workdays), false, '节假日胜出');
+  it('workdayAdjustment=false → 调休表全部失效（外企/弹性工作制场景）', () => {
+    const sat = new Date(2026, 6, 4);
+    const withWorkday: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
+    // 启用调休：周六变上班
+    assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday, true), true, '启用调休 → 周六上班');
+    // 关掉调休：周六回到默认休息
+    assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday, false), false, '禁用调休 → 周六休息');
   });
-  it('calcEarned 用 config.holidays：今天被标为休息日 → 今天不累加（历史未标仍按工作日算）', () => {
-    // 把整个 7 月全部标为休息 → 历史与今天都不应累加
-    const allHoliday: SalaryConfig['holidays'] = {};
-    for (let d = 1; d <= 31; d++) {
-      allHoliday[`2026-07-${String(d).padStart(2, '0')}`] = { name: '全月假' };
-    }
-    const config = baseWork({ holidays: allHoliday });
-    const realEarned = calcEarned(config, new Date(2026, 6, 15, 12, 0));
-    assert.equal(realEarned, 0, `全月标记休息后不应累加：实际 ${realEarned}`);
+  it('workdayAdjustment 默认 true（不传第 4 参 = 启用调休，向后兼容）', () => {
+    const sat = new Date(2026, 6, 4);
+    const withWorkday: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
+    // 不传 workdayAdjustment 时 = true（向后兼容）
+    assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday), true, '默认启用调休 → 周六上班');
+  });
+  it('workdayAdjustment=false 时，调休日不计入月总工时（影响时薪分母）', () => {
+    // 把 2026-07-04 周六加入用户调休
+    const enabledConfig = baseWork({
+      workdays: { ...WORKDAYS, '2026-07-04': { name: '公司调休' } },
+      workdayAdjustment: true,
+    });
+    const disabledConfig = baseWork({
+      workdays: { ...WORKDAYS, '2026-07-04': { name: '公司调休' } },
+      workdayAdjustment: false,
+    });
+    // 启用：月 work days = 23 (weekday) + 1 (07-04) = 24
+    // 禁用：月 work days = 23（07-04 当周末处理）
+    // 时薪分母不同 → calcMonthWorkDays 结果应不同
+    const rEnabled = calcMonthWorkDays(enabledConfig, 2026, 6);
+    const rDisabled = calcMonthWorkDays(disabledConfig, 2026, 6);
+    assert.equal(rEnabled.days, 24, '启用调休：24 个工作日');
+    assert.equal(rDisabled.days, 23, '禁用调休：23 个工作日（07-04 视为周末）');
+    assert.equal(rEnabled.hours, 24 * 8);
+    assert.equal(rDisabled.hours, 23 * 8);
+  });
+  it('同日同时出现在 HOLIDAYS 和 workdays → 节假日永远优先', () => {
+    const both: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-02-17': { name: '冲突的调休' } };
+    const d = new Date(2026, 1, 17); // 2026-02-17 是春节（内置节假日）
+    assert.equal(isWorkDay(d, HOLIDAYS, both), false, '节假日胜出，调休被忽略');
   });
   it('calcEarned 用 config.workdays：周末标为调休后，real 与 stub（全 work）数额有差异', () => {
     // 把 2026-07-04 周六标为调休上班

@@ -4,7 +4,6 @@ import {
   DayMarkEntry,
   mergeDayMarks,
   parseTime,
-  HOLIDAYS,
   WORKDAYS,
 } from './salary-core';
 
@@ -41,11 +40,11 @@ export function getConfig(): SalaryConfig {
 
   const mode = cfg.get<'work' | 'always'>('mode', 'work') === 'always' ? 'always' : 'work';
 
-  // 节假日/调休：用户配置覆盖内置（同 key 优先用户）
-  const userHolidays = cfg.get<DayMarkEntry[]>('holidays', []);
+  // 节假日：内置固定（不暴露用户配置）。
+  // 调休：内置 + 用户配置合并；可通过 workdayAdjustment 总开关一键关闭。
   const userWorkdays = cfg.get<DayMarkEntry[]>('workdays', []);
-  const holidays = mergeDayMarks(HOLIDAYS, userHolidays);
   const workdays = mergeDayMarks(WORKDAYS, userWorkdays);
+  const workdayAdjustment = cfg.get<boolean>('workdayAdjustment', true);
 
   return {
     monthlySalary,
@@ -55,7 +54,7 @@ export function getConfig(): SalaryConfig {
     lunchStart: validTime(cfg.get<string>('lunchStart', '12:00'), '12:00'),
     mode,
     decimalPlaces,
-    holidays,
     workdays,
+    workdayAdjustment,
   };
 }

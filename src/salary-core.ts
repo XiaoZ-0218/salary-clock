@@ -22,10 +22,10 @@ export interface SalaryConfig {
   lunchStart: string;     // "HH:mm"
   mode: 'work' | 'always';
   decimalPlaces: number;
-  /** 用户配置 + 内置合并后的节假日表（可选：未传时 isWorkDay 用内置常量） */
-  holidays?: Record<string, DayMark>;
-  /** 用户配置 + 内置合并后的调休表（可选） */
+  /** 用户配置 + 内置合并后的调休表（可选：未传时 isWorkDay 用内置常量） */
   workdays?: Record<string, DayMark>;
+  /** 是否启用调休上班日（默认 true；false 时调休按休息日处理） */
+  workdayAdjustment?: boolean;
 }
 
 /** 单日标记：{ name } */
@@ -130,21 +130,24 @@ export function parseTime(t: unknown): number | null {
  * 返回 true=全天工作, 'half'=半天, false=休息
  * （'half' 目前为可扩展保留分支，见文件顶部说明）
  *
- * 可选 holidays / workdays 用于传入「用户配置覆盖内置」后的合并数据；
- * 不传则用本文件顶部的内置常量（保持向后兼容）。
+ * 参数：
+ * - holidays：法定节假日表（内置固定，传 HOLIDAYS）
+ * - workdays：调休上班表（用户配置 + 内置合并）
+ * - workdayAdjustment：是否启用调休（默认 true；false 时调休按休息日处理）
  */
 export function isWorkDay(
   date: Date,
   holidays: Record<string, DayMark> = HOLIDAYS,
   workdays: Record<string, DayMark> = WORKDAYS,
+  workdayAdjustment: boolean = true,
 ): boolean | 'half' {
   const ds = formatDate(date);
   const dayOfWeek = date.getDay();
 
   // 法定节假日 → 休息
   if (holidays[ds]) return false;
-  // 调休上班 → 工作
-  if (workdays[ds]) return true;
+  // 调休上班（仅当启用调休开关时）
+  if (workdayAdjustment && workdays[ds]) return true;
   // 周末 → 休息
   if (dayOfWeek === 0 || dayOfWeek === 6) return false;
   // 普通工作日
@@ -173,7 +176,7 @@ export function calcMonthWorkDays(
   c: SalaryConfig,
   year: number,
   month: number,
-  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, c.holidays, c.workdays),
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true),
 ): { days: number; hours: number } {
   const dim = new Date(year, month + 1, 0).getDate();
   if (c.mode === 'always') {
@@ -232,7 +235,7 @@ function workedMinutesSoFar(
 export function calcEarned(
   c: SalaryConfig,
   now: Date,
-  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, c.holidays, c.workdays),
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true),
 ): number {
   const monthlySalary = c.monthlySalary;
   if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) return 0;
@@ -297,7 +300,7 @@ export function calcEarned(
  */
 export function isWorkingTime(c: SalaryConfig, now: Date): boolean {
   if (c.mode === 'always') return true;
-  if (isWorkDay(now, c.holidays, c.workdays) === false) return false;
+  if (isWorkDay(now, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true) === false) return false;
 
   const workStart = parseTime(c.startTime);
   const workEnd = parseTime(c.endTime);
