@@ -109,10 +109,10 @@
         },
         "salaryClock.updateIntervalMs": {
           "type": "number",
-          "default": 100,
+          "default": 250,
           "minimum": 50,
           "maximum": 1000,
-          "description": "刷新间隔（毫秒），越小跳动越快"
+          "description": "刷新间隔（毫秒），越小跳动越快（250 在 4 位小数下兼顾顺滑与可读）"
         },
         "salaryClock.showIcon": {
           "type": "boolean",
