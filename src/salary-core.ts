@@ -11,6 +11,9 @@
  * 0.5 处理。
  */
 
+import holidaysData from './data/holidays.json';
+import workdaysData from './data/workdays.json';
+
 export interface SalaryConfig {
   monthlySalary: number;
   startTime: string;      // "HH:mm"
@@ -21,25 +24,36 @@ export interface SalaryConfig {
   decimalPlaces: number;
 }
 
-// ==================== 节假日数据 ====================
+/** 单日标记：{ name } */
+export interface DayMark {
+  name: string;
+}
 
-export const HOLIDAYS: Record<string, { name: string }> = {
-  // 2024
-  '2024-01-01':{name:'元旦'},'2024-02-09':{name:'除夕'},'2024-02-10':{name:'春节'},'2024-02-11':{name:'春节'},'2024-02-12':{name:'春节'},'2024-02-13':{name:'春节'},'2024-02-14':{name:'春节'},'2024-02-15':{name:'春节'},'2024-02-16':{name:'春节'},'2024-02-17':{name:'春节'},'2024-04-04':{name:'清明'},'2024-04-05':{name:'清明'},'2024-04-06':{name:'清明'},'2024-05-01':{name:'劳动节'},'2024-05-02':{name:'劳动节'},'2024-05-03':{name:'劳动节'},'2024-05-04':{name:'劳动节'},'2024-05-05':{name:'劳动节'},'2024-06-10':{name:'端午'},'2024-09-15':{name:'中秋'},'2024-09-16':{name:'中秋'},'2024-09-17':{name:'中秋'},'2024-10-01':{name:'国庆'},'2024-10-02':{name:'国庆'},'2024-10-03':{name:'国庆'},'2024-10-04':{name:'国庆'},'2024-10-05':{name:'国庆'},'2024-10-06':{name:'国庆'},'2024-10-07':{name:'国庆'},
-  // 2025
-  '2025-01-01':{name:'元旦'},'2025-01-28':{name:'除夕'},'2025-01-29':{name:'春节'},'2025-01-30':{name:'春节'},'2025-01-31':{name:'春节'},'2025-02-01':{name:'春节'},'2025-02-02':{name:'春节'},'2025-02-03':{name:'春节'},'2025-02-04':{name:'春节'},'2025-04-04':{name:'清明'},'2025-04-05':{name:'清明'},'2025-04-06':{name:'清明'},'2025-05-01':{name:'劳动节'},'2025-05-02':{name:'劳动节'},'2025-05-03':{name:'劳动节'},'2025-05-04':{name:'劳动节'},'2025-05-05':{name:'劳动节'},'2025-05-31':{name:'端午'},'2025-06-01':{name:'端午'},'2025-06-02':{name:'端午'},'2025-10-01':{name:'国庆'},'2025-10-02':{name:'国庆'},'2025-10-03':{name:'国庆'},'2025-10-04':{name:'国庆'},'2025-10-05':{name:'国庆'},'2025-10-06':{name:'国庆'},'2025-10-07':{name:'国庆'},'2025-10-08':{name:'国庆'},
-  // 2026
-  '2026-01-01':{name:'元旦'},'2026-01-02':{name:'元旦'},'2026-01-03':{name:'元旦'},'2026-02-15':{name:'春节'},'2026-02-16':{name:'除夕'},'2026-02-17':{name:'春节'},'2026-02-18':{name:'春节'},'2026-02-19':{name:'春节'},'2026-02-20':{name:'春节'},'2026-02-21':{name:'春节'},'2026-02-22':{name:'春节'},'2026-02-23':{name:'春节'},'2026-04-04':{name:'清明'},'2026-04-05':{name:'清明'},'2026-04-06':{name:'清明'},'2026-05-01':{name:'劳动节'},'2026-05-02':{name:'劳动节'},'2026-05-03':{name:'劳动节'},'2026-05-04':{name:'劳动节'},'2026-05-05':{name:'劳动节'},'2026-06-19':{name:'端午'},'2026-06-20':{name:'端午'},'2026-06-21':{name:'端午'},'2026-09-25':{name:'中秋'},'2026-09-26':{name:'中秋'},'2026-09-27':{name:'中秋'},'2026-10-01':{name:'国庆'},'2026-10-02':{name:'国庆'},'2026-10-03':{name:'国庆'},'2026-10-04':{name:'国庆'},'2026-10-05':{name:'国庆'},'2026-10-06':{name:'国庆'},'2026-10-07':{name:'国庆'},
-};
+/** isWorkDay 的返回：全天工作(true) | 半天('half') | 休息(false) */
+export type WorkDayResult = boolean | 'half';
 
-export const WORKDAYS: Record<string, { name: string }> = {
-  // 2024 调休上班
-  '2024-02-04':{name:'春节调休'},'2024-02-18':{name:'春节调休'},'2024-04-07':{name:'清明调休'},'2024-04-28':{name:'劳动节调休'},'2024-05-11':{name:'劳动节调休'},'2024-09-14':{name:'中秋调休'},'2024-09-29':{name:'国庆调休'},'2024-10-12':{name:'国庆调休'},
-  // 2025 调休上班
-  '2025-01-26':{name:'春节调休'},'2025-02-08':{name:'春节调休'},'2025-04-27':{name:'劳动节调休'},'2025-09-28':{name:'国庆调休'},'2025-10-11':{name:'国庆调休'},
-  // 2026 调休上班
-  '2026-01-04':{name:'元旦调休'},'2026-02-14':{name:'春节调休'},'2026-02-28':{name:'春节调休'},'2026-05-09':{name:'劳动节调休'},'2026-09-20':{name:'国庆调休'},'2026-10-10':{name:'国庆调休'},
-};
+// ==================== 节假日数据（按年分组 JSON → 展平） ====================
+
+type YearGroupedData = Record<string, Record<string, DayMark>>;
+
+/** 把 { "2024": { "2024-01-01": {...} }, ... } 展平为 { "2024-01-01": {...}, ... } */
+function flatten(data: YearGroupedData): Record<string, DayMark> {
+  return Object.assign({}, ...Object.values(data)) as Record<string, DayMark>;
+}
+
+export const HOLIDAYS: Record<string, DayMark> = flatten(holidaysData as YearGroupedData);
+export const WORKDAYS: Record<string, DayMark> = flatten(workdaysData as YearGroupedData);
+
+/** 节假日数据覆盖的年份集合（升序），用于「数据过期」判断 */
+export const COVERED_YEARS: number[] = Object.keys(holidaysData as YearGroupedData)
+  .map((y) => Number(y))
+  .filter((y) => Number.isFinite(y))
+  .sort((a, b) => a - b);
+
+/** 该年份是否有内置节假日数据；无则 isWorkDay 会退化为「仅按周末」近似 */
+export function hasHolidayData(year: number): boolean {
+  return COVERED_YEARS.includes(year);
+}
 
 /**
  * 返回节假日/调休数据覆盖的年份区间 [最小年, 最大年]。
@@ -66,9 +80,9 @@ export function formatDate(d: Date): string {
  * 严格解析 "HH:mm"，合法返回自 00:00 起的分钟数，非法返回 null。
  * 只接受 00:00 - 23:59，杜绝 "9:00"/"25:61"/"abc" 等造成 NaN 传播。
  */
-export function parseTime(t: string): number | null {
+export function parseTime(t: unknown): number | null {
   if (typeof t !== 'string') return null;
-  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(t);
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(t.trim());
   if (!m) return null;
   return Number(m[1]) * 60 + Number(m[2]);
 }
@@ -112,7 +126,12 @@ export function getWorkHours(c: SalaryConfig): number {
   return (end - start - lunch) / 60;
 }
 
-export function calcMonthWorkDays(c: SalaryConfig, year: number, month: number): { days: number; hours: number } {
+export function calcMonthWorkDays(
+  c: SalaryConfig,
+  year: number,
+  month: number,
+  isWorkDayFn: (d: Date) => WorkDayResult = isWorkDay,
+): { days: number; hours: number } {
   const dim = new Date(year, month + 1, 0).getDate();
   if (c.mode === 'always') {
     // always 模式：整月每一天、每一秒都计薪，与工时/工作日无关
@@ -123,7 +142,7 @@ export function calcMonthWorkDays(c: SalaryConfig, year: number, month: number):
   const perDayHours = Number.isFinite(workHours) ? workHours : 0;
   let totalDays = 0, totalHours = 0;
   for (let d = 1; d <= dim; d++) {
-    const w = workDayWeight(isWorkDay(new Date(year, month, d)));
+    const w = workDayWeight(isWorkDayFn(new Date(year, month, d)));
     if (w > 0) { totalDays += w; totalHours += perDayHours * w; }
   }
   return { days: totalDays, hours: totalHours };
@@ -167,7 +186,11 @@ function workedMinutesSoFar(
   return Math.max(0, worked);
 }
 
-export function calcEarned(c: SalaryConfig, now: Date): number {
+export function calcEarned(
+  c: SalaryConfig,
+  now: Date,
+  isWorkDayFn: (d: Date) => WorkDayResult = isWorkDay,
+): number {
   const monthlySalary = c.monthlySalary;
   if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) return 0;
 
@@ -184,7 +207,7 @@ export function calcEarned(c: SalaryConfig, now: Date): number {
   const workHours = getWorkHours(c);
   if (!Number.isFinite(workHours) || workHours <= 0) return 0;
 
-  const { hours: totalWorkHours } = calcMonthWorkDays(c, now.getFullYear(), now.getMonth());
+  const { hours: totalWorkHours } = calcMonthWorkDays(c, now.getFullYear(), now.getMonth(), isWorkDayFn);
   if (!Number.isFinite(totalWorkHours) || totalWorkHours <= 0) return 0;
 
   const hourlyRate = monthlySalary / totalWorkHours;
@@ -210,12 +233,12 @@ export function calcEarned(c: SalaryConfig, now: Date): number {
 
   // 本月已过去的完整工作日
   for (let d = 1; d < today; d++) {
-    const w = workDayWeight(isWorkDay(new Date(year, month, d)));
+    const w = workDayWeight(isWorkDayFn(new Date(year, month, d)));
     if (w > 0) earned += hourlyRate * workHours * w;
   }
 
   // 今天：按已计薪分钟数累计（workedMinutesSoFar 与 isWorkingMinute 共用边界，午休判断一致）
-  const todayWeight = workDayWeight(isWorkDay(new Date(year, month, today)));
+  const todayWeight = workDayWeight(isWorkDayFn(new Date(year, month, today)));
   if (todayWeight > 0) {
     const worked = workedMinutesSoFar(currentTotalMin, workStart, workEnd, lunchStartMin, lunchEndMin);
     earned += hourlyRate * (worked / 60) * todayWeight;
@@ -224,6 +247,11 @@ export function calcEarned(c: SalaryConfig, now: Date): number {
   return earned;
 }
 
+/**
+ * 当前是否处于工作时段（状态栏图标/文案用）。
+ * 注意：**不扣午休**——午休期间仍视为「工作时段」（图标仍显示赚钱中）。
+ * 真正「是否在计薪分钟」由 calcEarned/workedMinutesSoFar 负责，两者关注点不同。
+ */
 export function isWorkingTime(c: SalaryConfig, now: Date): boolean {
   if (c.mode === 'always') return true;
   if (isWorkDay(now) === false) return false;
@@ -232,21 +260,12 @@ export function isWorkingTime(c: SalaryConfig, now: Date): boolean {
   const workEnd = parseTime(c.endTime);
   if (workStart === null || workEnd === null) return false;
 
-  let lunchStartMin = 0, lunchEndMin = 0;
-  if (c.lunchDurationMin > 0) {
-    const ls = parseTime(c.lunchStart);
-    if (ls !== null) {
-      lunchStartMin = ls;
-      lunchEndMin = ls + c.lunchDurationMin;
-    }
-  }
-
   const currentMin = now.getHours() * 60 + now.getMinutes();
-  return isWorkingMinute(currentMin, workStart, workEnd, lunchStartMin, lunchEndMin);
+  return currentMin >= workStart && currentMin < workEnd;
 }
 
 export function formatMoney(amount: number, decimalPlaces: number): string {
   if (!Number.isFinite(amount)) return '¥ —';
-  const dp = Number.isFinite(decimalPlaces) ? Math.min(6, Math.max(0, Math.floor(decimalPlaces))) : 4;
+  const dp = Number.isFinite(decimalPlaces) ? Math.min(6, Math.max(0, Math.floor(decimalPlaces))) : 0;
   return `¥ ${amount.toFixed(dp)}`;
 }
