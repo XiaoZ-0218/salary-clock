@@ -41,8 +41,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Left,
     100
   );
-  statusBarItem.command = 'salaryClock.openClock';
-  statusBarItem.tooltip = '点击打开时钟面板 ⏰';
+  // 状态栏点击 = 打开设置（WebView 时钟面板通过命令面板 / alt+shift+d 打开）
+  statusBarItem.command = 'salaryClock.showSettings';
+  statusBarItem.tooltip = '点击打开薪资时钟设置 ⚙️';
   context.subscriptions.push(statusBarItem);
 
   startTicking();
@@ -260,13 +261,13 @@ function updateDisplay() {
   const workLabel = working ? '🟢 赚钱中' : '💤 休息中';
 
   statusBarItem.tooltip = [
-    `点击打开时钟面板`,
+    `点击打开薪资时钟设置`,
     `${moneyStr}`,
     `模式: ${modeLabel}  |  ${wdLabel}  |  ${workLabel}`,
     `月薪: ¥${config.monthlySalary.toLocaleString()}  |  时薪: ¥${hourlyRate.toFixed(2)}`,
     `工作时间: ${config.startTime}-${config.endTime}  |  午休: ${config.lunchDurationMin}分钟`,
     `${now.getFullYear()}年${now.getMonth() + 1}月: ${stats.days}个工作日 × ${dailyHours}h = ${totalHours}h`,
-    `🖱️ 点击打开时钟面板 | Ctrl+Shift+P → 薪资时钟: 设置 可修改配置`,
+    `⚙️ 点击打开设置 | Alt+Shift+D 打开时钟面板`,
   ].join('\n');
 
   let text: string;
