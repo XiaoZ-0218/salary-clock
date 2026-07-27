@@ -149,7 +149,10 @@
                 "description": "调休名称"
               }
             },
-            "required": ["date", "name"],
+            "required": [
+              "date",
+              "name"
+            ],
             "additionalProperties": false
           },
           "default": [],
@@ -191,12 +194,12 @@
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "@types/vscode": "^1.85.0",
-    "typescript": "^5.3.0",
-    "@types/node": "^20.10.0",
-    "eslint": "^8.57.1",
-    "@typescript-eslint/parser": "^7.18.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "tsx": "^4.19.2"
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.3.0"
   }
 }
