@@ -179,11 +179,7 @@ export function calcMonthWorkDays(
   isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true),
 ): { days: number; hours: number } {
   const dim = new Date(year, month + 1, 0).getDate();
-  if (c.mode === 'always') {
-    // always 模式：整月每一天、每一秒都计薪，与工时/工作日无关
-    return { days: dim, hours: dim * 24 };
-  }
-  // 上班才赚钱：只算工作日
+  // 上班才赚钱：只算工作日（always 模式下只是薪资计算不同，工时统计不变）
   const workHours = getWorkHours(c);
   const perDayHours = Number.isFinite(workHours) ? workHours : 0;
   let totalDays = 0, totalHours = 0;
@@ -314,4 +310,168 @@ export function formatMoney(amount: number, decimalPlaces: number): string {
   if (!Number.isFinite(amount)) return '¥ —';
   const dp = Number.isFinite(decimalPlaces) ? Math.min(6, Math.max(0, Math.floor(decimalPlaces))) : 0;
   return `¥ ${amount.toFixed(dp)}`;
+}
+
+/**
+ * 计算今日工作进度百分比（0-1）。
+ * 基于配置的上下班时间和午休时间计算。
+ * 非工作日返回 0，上班前返回 0，下班后返回 1。
+ */
+export function calcWorkProgress(c: SalaryConfig, now: Date): number {
+  const workStart = parseTime(c.startTime);
+  const workEnd = parseTime(c.endTime);
+  if (workStart === null || workEnd === null) return 0;
+
+  const lunch = Number.isFinite(c.lunchDurationMin) ? c.lunchDurationMin : 0;
+  const totalWorkMinutes = workEnd - workStart - lunch;
+  if (totalWorkMinutes <= 0) return 0;
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes() + (now.getSeconds() + now.getMilliseconds() / 1000) / 60;
+
+  // 上班前
+  if (nowMinutes <= workStart) return 0;
+  // 下班后
+  if (nowMinutes >= workEnd) return 1;
+
+  let workedMinutes = nowMinutes - workStart;
+
+  // 扣除午休时间
+  if (c.lunchDurationMin > 0) {
+    const lunchStart = parseTime(c.lunchStart);
+    if (lunchStart !== null) {
+      const lunchEnd = lunchStart + c.lunchDurationMin;
+      // 如果当前时间在午休期间，进度停在午休开始
+      if (nowMinutes >= lunchStart && nowMinutes < lunchEnd) {
+        workedMinutes = lunchStart - workStart;
+      } else if (nowMinutes >= lunchEnd) {
+        workedMinutes = nowMinutes - c.lunchDurationMin - workStart;
+      }
+    }
+  }
+
+  return Math.min(1, Math.max(0, workedMinutes / totalWorkMinutes));
+}
+
+/** 生成分辨率为 10 的进度条字符串 */
+export function progressBar(progress: number, filled = '▰', empty = '▱'): string {
+  const filledCount = Math.round(progress * 10);
+  return filled.repeat(filledCount) + empty.repeat(10 - filledCount);
+}
+
+/**
+ * 计算截至 now，本月已过的工作小时数（基于配置的上下班时间和午休）。
+ * 与 mode 无关，始终按工作日 + 工时配置计算。
+ */
+export function calcMonthWorkHours(
+  c: SalaryConfig,
+  now: Date,
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true),
+): { worked: number; total: number } {
+  const workHours = getWorkHours(c);
+  if (!Number.isFinite(workHours) || workHours <= 0) return { worked: 0, total: 0 };
+
+  const workStart = parseTime(c.startTime);
+  const workEnd = parseTime(c.endTime);
+  if (workStart === null || workEnd === null) return { worked: 0, total: 0 };
+
+  let lunchStartMin = 0, lunchEndMin = 0;
+  if (c.lunchDurationMin > 0) {
+    const ls = parseTime(c.lunchStart);
+    if (ls !== null) {
+      lunchStartMin = ls;
+      lunchEndMin = ls + c.lunchDurationMin;
+    }
+  }
+
+  const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+  const dim = new Date(year, month + 1, 0).getDate();
+  const currentTotalMin = now.getHours() * 60 + now.getMinutes() + (now.getSeconds() + now.getMilliseconds() / 1000) / 60;
+
+  let workedHours = 0;
+  let totalHours = 0;
+
+  // 遍历整月：分母 = 本月所有工作日总工时，分子 = 截至今天已过工时
+  for (let d = 1; d <= dim; d++) {
+    const w = workDayWeight(isWorkDayFn(new Date(year, month, d)));
+    if (w <= 0) continue;
+    totalHours += workHours * w;
+    if (d < today) {
+      workedHours += workHours * w;
+    }
+  }
+
+  // 今天：分子按已过分钟数算
+  const todayWeight = workDayWeight(isWorkDayFn(new Date(year, month, today)));
+  if (todayWeight > 0) {
+    workedHours += workedMinutesSoFar(currentTotalMin, workStart, workEnd, lunchStartMin, lunchEndMin) / 60 * todayWeight;
+  }
+
+  return { worked: workedHours, total: totalHours };
+}
+
+/**
+ * 计算本周工作小时数（周一至周日所有工作日）。
+ * 与 mode 无关，始终按工作日 + 工时配置计算。
+ */
+export function calcWeekWorkHours(
+  c: SalaryConfig,
+  now: Date,
+  isWorkDayFn: (d: Date) => WorkDayResult = (d) => isWorkDay(d, HOLIDAYS, c.workdays, c.workdayAdjustment ?? true),
+): { worked: number; total: number } {
+  const workHours = getWorkHours(c);
+  if (!Number.isFinite(workHours) || workHours <= 0) return { worked: 0, total: 0 };
+
+  const workStart = parseTime(c.startTime);
+  const workEnd = parseTime(c.endTime);
+  if (workStart === null || workEnd === null) return { worked: 0, total: 0 };
+
+  let lunchStartMin = 0, lunchEndMin = 0;
+  if (c.lunchDurationMin > 0) {
+    const ls = parseTime(c.lunchStart);
+    if (ls !== null) {
+      lunchStartMin = ls;
+      lunchEndMin = ls + c.lunchDurationMin;
+    }
+  }
+
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+
+  // 周日 = 周一 + 6 天
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const currentTotalMin = now.getHours() * 60 + now.getMinutes() + (now.getSeconds() + now.getMilliseconds() / 1000) / 60;
+
+  let workedHours = 0;
+  let totalHours = 0;
+  const current = new Date(monday);
+
+  // 遍历整周（周一到周日）：分母 = 全周工作日总工时
+  while (current <= sunday) {
+    const wd = isWorkDayFn(current);
+    if (wd !== false) {
+      const w = workDayWeight(wd);
+      totalHours += workHours * w;
+      if (current < today) {
+        workedHours += workHours * w;
+      }
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  // 今天（扣除午休）
+  const todayWeight = workDayWeight(isWorkDayFn(today));
+  if (todayWeight > 0) {
+    workedHours += workedMinutesSoFar(currentTotalMin, workStart, workEnd, lunchStartMin, lunchEndMin) / 60 * todayWeight;
+  }
+
+  return { worked: workedHours, total: totalHours };
 }

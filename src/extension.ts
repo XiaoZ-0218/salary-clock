@@ -10,6 +10,10 @@ import {
   calcMonthWorkDays,
   getWorkHours,
   getCoveredYears,
+  calcWorkProgress,
+  calcWeekWorkHours,
+  calcMonthWorkHours,
+  progressBar,
   HOLIDAYS,
   WORKDAYS as BUILTIN_WORKDAYS,
   type SalaryConfig,
@@ -31,6 +35,10 @@ let cachedHtml: string | undefined;
 let cachedStats: { key: string; days: number; hours: number } | undefined;
 /** 上次写入状态栏的文本，用于去重，避免无谓的 UI 刷新 */
 let lastStatusText: string | undefined;
+/** 上次更新 tooltip 的时间戳（毫秒），用于节流避免抖动 */
+let lastTooltipUpdate = 0;
+/** tooltip 刷新节流间隔（毫秒）*/
+const TOOLTIP_THROTTLE_MS = 30000;
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('薪资时钟');
@@ -197,7 +205,7 @@ function sendConfigToWebview(panel: vscode.WebviewPanel) {
   if (currentPanel !== panel) return;
   try {
     const config = getConfig();
-    const theme = vscode.workspace.getConfiguration('salaryClock').get<string>('theme', 'aurora');
+    const theme = vscode.workspace.getConfiguration('salaryClock').get<string>('Atheme', 'aurora');
 
     panel.webview.postMessage({
       type: 'config',
@@ -248,7 +256,7 @@ function startTicking() {
   }
 
   const cfg = vscode.workspace.getConfiguration('salaryClock');
-  const intervalMs = cfg.get<number>('updateIntervalMs', 250);
+  const intervalMs = cfg.get<number>('8interval', 250);
 
   timer = setInterval(() => {
     updateDisplay();
@@ -261,38 +269,75 @@ function updateDisplay() {
   const earned = calcEarned(config, now);
   const working = isWorkingTime(config, now);
   const wd = isWorkDay(now, HOLIDAYS, config.workdays, config.workdayAdjustment ?? true);
-  const showIcon = vscode.workspace.getConfiguration('salaryClock').get<boolean>('showIcon', true);
+  const showIcon = vscode.workspace.getConfiguration('salaryClock').get<boolean>('9icon', true);
 
   const prefix = showIcon ? '💰 ' : '';
   const moneyStr = formatMoney(earned, config.decimalPlaces);
+  const showProgress = vscode.workspace.getConfiguration('salaryClock').get<boolean>('Aprogress', false);
 
-  // 当月统计（缓存复用，仅配置变更/跨月时重算）
-  const stats = getMonthStats(config, now.getFullYear(), now.getMonth());
+  // 计算今日工作进度
+  const dayProgress = calcWorkProgress(config, now);
+  const dayProgressPercent = (dayProgress * 100).toFixed(config.decimalPlaces);
+  const dayBar = progressBar(dayProgress);
+
+  // 单日工时
   const dailyHours = getWorkHours(config);
-  const totalHours = stats.hours;
-  const hourlyRate = config.monthlySalary / (totalHours || 1);
+
+  // 本周进度（按工时计算，含今天完整 8h 作为分母）
+  const weekHours = calcWeekWorkHours(config, now);
+  const weekRatio = weekHours.total > 0 ? weekHours.worked / weekHours.total : 0;
+  const weekBar = progressBar(Math.min(1, weekRatio));
+
+  // 本月进度（按工时计算，含今天完整 8h 作为分母）
+  const monthHours = calcMonthWorkHours(config, now);
+  const monthRatio = monthHours.total > 0 ? monthHours.worked / monthHours.total : 0;
+  const monthBar = progressBar(Math.min(1, monthRatio));
+
+  // 今日已工作小时数（用 calcWorkProgress 单独算一次，确保与今日进度一致）
+  const dayWorkedHours = calcWorkProgress(config, now) * dailyHours;
+  const dayHoursStr = `${dayWorkedHours.toFixed(2)}h / ${dailyHours.toFixed(2)}h`;
+
+  // 本周已工作小时数
+  const weekHoursStr = `${weekHours.worked.toFixed(2)}h / ${weekHours.total.toFixed(2)}h`;
+
+  // 本月已工作小时数
+  const monthHoursStr = `${monthHours.worked.toFixed(2)}h / ${monthHours.total.toFixed(2)}h`;
 
   // tooltip（MarkdownString，VS Code 渲染 markdown / $(icon)）
   const modeLabel = config.mode === 'work' ? '上班才赚钱' : '随时都赚钱';
   const wdLabel = wd === true ? '✅ 工作日' : wd === 'half' ? '🕐 半天' : '❌ 休息日';
   const workLabel = working ? '🟢 赚钱中' : '💤 休息中';
+
   const md = new vscode.MarkdownString(
     [
       `💰 **${moneyStr}** · ${workLabel} · ${wdLabel} · ${modeLabel}`,
       ``,
-      `⏱️ 时薪 **¥${hourlyRate.toFixed(2)}/h** · 工时 ${config.startTime}–${config.endTime}（午休 ${config.lunchDurationMin}min）`,
-      `📅 ${now.getFullYear()}年${now.getMonth() + 1}月：${stats.days} 工作日 × ${dailyHours}h = ${totalHours}h`,
+      `**今日** ${dayBar} **${(dayProgress * 100).toFixed(2)}%**  ${dayHoursStr}`,
+      ``,
+      `**本周** ${weekBar} **${(weekRatio * 100).toFixed(2)}%**  ${weekHoursStr}`,
+      ``,
+      `**本月** ${monthBar} **${(monthRatio * 100).toFixed(2)}%**  ${monthHoursStr}`,
       ``,
       `⚙️ 点击打开设置 · Alt+Shift+D 打开时钟面板`,
     ].join('\n'),
-    true, // supportThemeIcons
+    true,
   );
-  statusBarItem.tooltip = md;
+
+  // 节流 tooltip 更新：距离上次更新不足 1 秒则跳过，减少抖动
+  const nowMs = Date.now();
+  if (nowMs - lastTooltipUpdate >= TOOLTIP_THROTTLE_MS) {
+    statusBarItem.tooltip = md;
+    lastTooltipUpdate = nowMs;
+  }
 
   let text: string;
   if (config.mode === 'work' && !working) {
     text = `${prefix}${moneyStr} 💤`;
     statusBarItem.backgroundColor = undefined;
+  } else if (showProgress) {
+    // 同时显示薪资和今日进度百分比
+    text = `${prefix}${moneyStr} | ${dayProgressPercent}%`;
+    statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
   } else {
     text = `${prefix}${moneyStr}`;
     statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
@@ -380,13 +425,13 @@ function parseAddInput(input: string): { date: string; name: string } | undefine
 
 /** 读取用户在 settings.json 中的 workdays 数组（节假日内置固定，无此函数） */
 function readUserWorkdays(): DayMarkEntry[] {
-  return vscode.workspace.getConfiguration('salaryClock').get<DayMarkEntry[]>('workdays', []) ?? [];
+  return vscode.workspace.getConfiguration('salaryClock').get<DayMarkEntry[]>('Bworkdays', []) ?? [];
 }
 
 /** 写入用户在 settings.json 中的 workdays 数组 */
 async function writeUserWorkdays(value: DayMarkEntry[]): Promise<void> {
   await vscode.workspace.getConfiguration('salaryClock')
-    .update('workdays', value, vscode.ConfigurationTarget.Global);
+    .update('Bworkdays', value, vscode.ConfigurationTarget.Global);
 }
 
 /**

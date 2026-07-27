@@ -25,33 +25,33 @@ export function getConfig(): SalaryConfig {
   const cfg = vscode.workspace.getConfiguration('salaryClock');
 
   // monthlySalary: 必须是有限数且非负，否则回退默认 20000
-  let monthlySalary = cfg.get<number>('monthlySalary', 20000);
+  let monthlySalary = cfg.get<number>('1salary', 20000);
   if (!Number.isFinite(monthlySalary) || monthlySalary < 0) monthlySalary = 20000;
 
   // lunchDurationMin: clamp 到 0–600 分钟
-  let lunchDurationMin = cfg.get<number>('lunchDurationMin', 60);
+  let lunchDurationMin = cfg.get<number>('4lunchDuration', 120);
   if (!Number.isFinite(lunchDurationMin)) lunchDurationMin = 60;
   lunchDurationMin = Math.min(600, Math.max(0, lunchDurationMin));
 
   // decimalPlaces: clamp 到 0–6，取整
-  let decimalPlaces = cfg.get<number>('decimalPlaces', 4);
+  let decimalPlaces = cfg.get<number>('7decimal', 4);
   if (!Number.isFinite(decimalPlaces)) decimalPlaces = 4;
   decimalPlaces = Math.min(6, Math.max(0, Math.round(decimalPlaces)));
 
-  const mode = cfg.get<'work' | 'always'>('mode', 'work') === 'always' ? 'always' : 'work';
+  const mode = cfg.get<'work' | 'always'>('6mode', 'work') === 'always' ? 'always' : 'work';
 
   // 节假日：内置固定（不暴露用户配置）。
   // 调休：内置 + 用户配置合并；可通过 workdayAdjustment 总开关一键关闭。
-  const userWorkdays = cfg.get<DayMarkEntry[]>('workdays', []);
+  const userWorkdays = cfg.get<DayMarkEntry[]>('Bworkdays', []);
   const workdays = mergeDayMarks(WORKDAYS, userWorkdays);
-  const workdayAdjustment = cfg.get<boolean>('workdayAdjustment', true);
+  const workdayAdjustment = cfg.get<boolean>('Badjustment', true);
 
   return {
     monthlySalary,
-    startTime: validTime(cfg.get<string>('startTime', '09:00'), '09:00'),
-    endTime: validTime(cfg.get<string>('endTime', '18:00'), '18:00'),
+    startTime: validTime(cfg.get<string>('2workStart', '10:30'), '10:30'),
+    endTime: validTime(cfg.get<string>('5workEnd', '18:30'), '18:30'),
     lunchDurationMin,
-    lunchStart: validTime(cfg.get<string>('lunchStart', '12:00'), '12:00'),
+    lunchStart: validTime(cfg.get<string>('3lunchStart', '12:00'), '12:00'),
     mode,
     decimalPlaces,
     workdays,

@@ -76,32 +76,32 @@
     "configuration": {
       "title": "薪资时钟",
       "properties": {
-        "salaryClock.monthlySalary": {
+        "salaryClock.1salary": {
           "type": "number",
           "default": 20000,
           "description": "月薪（元）"
         },
-        "salaryClock.startTime": {
+        "salaryClock.2workStart": {
           "type": "string",
-          "default": "09:00",
+          "default": "10:30",
           "description": "上班时间 (HH:mm)"
         },
-        "salaryClock.endTime": {
-          "type": "string",
-          "default": "18:00",
-          "description": "下班时间 (HH:mm)"
-        },
-        "salaryClock.lunchDurationMin": {
-          "type": "number",
-          "default": 60,
-          "description": "午休时长（分钟），0 表示无午休"
-        },
-        "salaryClock.lunchStart": {
+        "salaryClock.3lunchStart": {
           "type": "string",
           "default": "12:00",
           "description": "午休开始时间 (HH:mm)"
         },
-        "salaryClock.mode": {
+        "salaryClock.4lunchDuration": {
+          "type": "number",
+          "default": 120,
+          "description": "午休时长（分钟），0 表示无午休"
+        },
+        "salaryClock.5workEnd": {
+          "type": "string",
+          "default": "18:30",
+          "description": "下班时间 (HH:mm)"
+        },
+        "salaryClock.6mode": {
           "type": "string",
           "enum": [
             "work",
@@ -110,55 +110,31 @@
           "default": "work",
           "description": "计算模式：work = 上班才赚钱，always = 随时都赚钱"
         },
-        "salaryClock.decimalPlaces": {
+        "salaryClock.7decimal": {
           "type": "number",
           "default": 4,
           "minimum": 0,
           "maximum": 6,
           "description": "显示的小数位数"
         },
-        "salaryClock.updateIntervalMs": {
+        "salaryClock.8interval": {
           "type": "number",
           "default": 250,
           "minimum": 50,
           "maximum": 1000,
           "description": "刷新间隔（毫秒），越小跳动越快（250 在 4 位小数下兼顾顺滑与可读）"
         },
-        "salaryClock.showIcon": {
+        "salaryClock.9icon": {
           "type": "boolean",
           "default": true,
           "description": "在状态栏显示 💰 图标"
         },
-        "salaryClock.workdayAdjustment": {
+        "salaryClock.Aprogress": {
           "type": "boolean",
-          "default": true,
-          "description": "是否启用调休上班日（默认 true，按内置 + 用户配置的调休表把周末改成工作日；设为 false 时调休按休息日处理，适合外企/弹性工作制）"
+          "default": false,
+          "description": "在状态栏上班时间展示工作进度百分比（小数位数复用 decimalPlaces 设置）"
         },
-        "salaryClock.workdays": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "date": {
-                "type": "string",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "description": "日期，格式 YYYY-MM-DD"
-              },
-              "name": {
-                "type": "string",
-                "description": "调休名称"
-              }
-            },
-            "required": [
-              "date",
-              "name"
-            ],
-            "additionalProperties": false
-          },
-          "default": [],
-          "description": "调休上班日（增量合并到内置数据）。格式：[{date:'YYYY-MM-DD', name:'调休名'}]。同一天同时出现在节假日和调休中时，节假日优先。"
-        },
-        "salaryClock.theme": {
+        "salaryClock.Atheme": {
           "type": "string",
           "enum": [
             "aurora",
@@ -182,6 +158,35 @@
           ],
           "default": "aurora",
           "description": "时钟面板主题样式"
+        },
+        "salaryClock.Badjustment": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否启用调休上班日（默认 true，按内置 + 用户配置的调休表把周末改成工作日；设为 false 时调休按休息日处理，适合外企/弹性工作制）"
+        },
+        "salaryClock.Bworkdays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "日期，格式 YYYY-MM-DD"
+              },
+              "name": {
+                "type": "string",
+                "description": "调休名称"
+              }
+            },
+            "required": [
+              "date",
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "default": [],
+          "description": "调休上班日（增量合并到内置数据）。格式：[{date:'YYYY-MM-DD', name:'调休名'}]。同一天同时出现在节假日和调休中时，节假日优先。"
         }
       }
     }

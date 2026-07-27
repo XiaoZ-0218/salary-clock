@@ -37,13 +37,13 @@ function approx(actual: number, expected: number, eps = EPS): void {
   );
 }
 
-/** 基准 work 配置：09:00–18:00，午休 60min@12:00，工时 8h */
+/** 基准配置：10:30–18:30，午休 2h@12:00，工时 6h */
 function baseWork(overrides: Partial<SalaryConfig> = {}): SalaryConfig {
   return {
     monthlySalary: 20000,
-    startTime: '09:00',
-    endTime: '18:00',
-    lunchDurationMin: 60,
+    startTime: '10:30',
+    endTime: '18:30',
+    lunchDurationMin: 120,
     lunchStart: '12:00',
     mode: 'work',
     decimalPlaces: 4,
@@ -52,9 +52,9 @@ function baseWork(overrides: Partial<SalaryConfig> = {}): SalaryConfig {
 }
 
 const allTrue = (): WorkDayResult => true;
-// 2026 年 7 月：无节假日/调休，dim=31。工时 8h，allTrue → 当月总工时 = 31*8 = 248。
-const HR = 20000 / 248; // 时薪
-const DAILY = 20000 / 31; // 每个整工作日金额 = HR*8
+// 2026 年 7 月：无节假日/调休，dim=31。工时 6h，allTrue → 当月总工时 = 31*6 = 186。
+const HR = 20000 / 186; // 时薪 = 月薪 / 总工时(allTrue: 31*6h)
+const DAILY = 20000 / 31; // 每个整工作日金额 = HR*6
 
 // ==================== parseTime ====================
 
@@ -103,33 +103,33 @@ describe('isWorkDay', () => {
 
 describe('isWorkingTime', () => {
   const c = baseWork();
-  it('==start（09:00）→ true（含）', () =>
-    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 9, 0)), true));
-  it('==end（18:00）→ false（不含）', () =>
-    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 18, 0)), false));
-  it('区间内（10:00）→ true', () =>
-    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 10, 0)), true));
-  it('区间外（08:59）→ false', () =>
-    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 8, 59)), false));
+  it('==start（10:30）→ true（含）', () =>
+    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 10, 30)), true));
+  it('==end（18:30）→ false（不含）', () =>
+    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 18, 30)), false));
+  it('区间内（14:00）→ true', () =>
+    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 14, 0)), true));
+  it('区间外（10:29）→ false', () =>
+    assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 10, 29)), false));
   it('午休时段仍算工作时间（isWorkingTime 不看午休）→ true', () =>
     assert.equal(isWorkingTime(c, new Date(2026, 6, 6, 12, 30)), true));
   it('always 模式恒为 true（周末凌晨）', () =>
     assert.equal(isWorkingTime(baseWork({ mode: 'always' }), new Date(2026, 6, 11, 3, 0)), true));
   it('休息日（周六）work 模式恒为 false', () =>
-    assert.equal(isWorkingTime(c, new Date(2026, 6, 11, 10, 0)), false));
+    assert.equal(isWorkingTime(c, new Date(2026, 6, 11, 14, 0)), false));
   it('非法时间配置 → false', () =>
-    assert.equal(isWorkingTime(baseWork({ startTime: 'bad' }), new Date(2026, 6, 6, 10, 0)), false));
+    assert.equal(isWorkingTime(baseWork({ startTime: 'bad' }), new Date(2026, 6, 6, 14, 0)), false));
 });
 
 // ==================== getWorkHours ====================
 
 describe('getWorkHours', () => {
-  it('正常 09:00–18:00 午休60 → 8', () => approx(getWorkHours(baseWork()), 8));
-  it('午休=0 → 9', () => approx(getWorkHours(baseWork({ lunchDurationMin: 0 })), 9));
-  it('午休>工时（600min）→ 负工时 -1', () =>
-    approx(getWorkHours(baseWork({ lunchDurationMin: 600 })), -1));
+  it('正常 10:30–18:30 午休2h → 6', () => approx(getWorkHours(baseWork()), 6));
+  it('午休=0 → 8', () => approx(getWorkHours(baseWork({ lunchDurationMin: 0 })), 8));
+  it('午休>工时（600min）→ 负工时 -2', () =>
+    approx(getWorkHours(baseWork({ lunchDurationMin: 600 })), -2));
   it('startTime>endTime → 负工时 -10', () =>
-    approx(getWorkHours(baseWork({ startTime: '18:00', endTime: '09:00' })), -10)); // (540-1080-60)/60
+    approx(getWorkHours(baseWork({ startTime: '18:30', endTime: '10:30' })), -10)); // (630-1110-120)/60
   it('非法时间 → NaN', () =>
     assert.ok(Number.isNaN(getWorkHours(baseWork({ startTime: 'xx:yy' })))));
 });
@@ -137,24 +137,24 @@ describe('getWorkHours', () => {
 // ==================== calcEarned —— work 模式 ====================
 
 describe('calcEarned (work)', () => {
-  it('上班前（08:00）：仅累计昨日，今日 0 增量', () => {
-    const earned = calcEarned(baseWork(), new Date(2026, 6, 15, 8, 0, 0), allTrue);
+  it('上班前（10:00）：仅累计昨日，今日 0 增量', () => {
+    const earned = calcEarned(baseWork(), new Date(2026, 6, 15, 10, 0, 0), allTrue);
     approx(earned, 14 * DAILY); // 1..14 号共 14 个整工作日
   });
 
-  it('工作时段中（10:00）：昨日累计 + 今日 1 小时', () => {
-    const earned = calcEarned(baseWork(), new Date(2026, 6, 15, 10, 0, 0), allTrue);
-    approx(earned, 14 * DAILY + HR * 1);
+  it('工作时段中（17:00）：昨日累计 + 今日 4.5 小时（午休后 14:00–17:00）', () => {
+    const earned = calcEarned(baseWork(), new Date(2026, 6, 15, 17, 0, 0), allTrue);
+    approx(earned, 14 * DAILY + HR * 4.5);
   });
 
-  it('午休不增长：12:00 / 12:30 / 13:00 三点金额一致（均为今日 3h）', () => {
+  it('午休不增长：12:00 / 13:00 / 14:00 中前两个一致（均为 1.5h）', () => {
     const c = baseWork();
     const at1200 = calcEarned(c, new Date(2026, 6, 15, 12, 0, 0), allTrue);
-    const at1230 = calcEarned(c, new Date(2026, 6, 15, 12, 30, 0), allTrue);
     const at1300 = calcEarned(c, new Date(2026, 6, 15, 13, 0, 0), allTrue);
-    approx(at1200, 14 * DAILY + HR * 3);
-    approx(at1230, at1200);
-    approx(at1300, at1200);
+    const at1400 = calcEarned(c, new Date(2026, 6, 15, 14, 0, 0), allTrue);
+    approx(at1200, 14 * DAILY + HR * 1.5);
+    approx(at1300, at1200);   // 午休期间不增长
+    approx(at1400, at1200);   // 午休结束那一刻也不增长
   });
 
   it('下班后（20:00）：今日封顶为满额', () => {
@@ -162,8 +162,8 @@ describe('calcEarned (work)', () => {
     approx(earned, 15 * DAILY);
   });
 
-  it('深夜（23:59）与刚下班同值（封顶不溢出）', () => {
-    const a = calcEarned(baseWork(), new Date(2026, 6, 15, 18, 0, 0), allTrue);
+  it('深夜（23:59）与刚下班（18:30）同值（封顶不溢出）', () => {
+    const a = calcEarned(baseWork(), new Date(2026, 6, 15, 18, 30, 0), allTrue);
     const b = calcEarned(baseWork(), new Date(2026, 6, 15, 23, 59, 59), allTrue);
     approx(a, 15 * DAILY);
     approx(b, 15 * DAILY);
@@ -171,10 +171,10 @@ describe('calcEarned (work)', () => {
 
   it('半天（today=half）：今日增量为整日的一半', () => {
     const halfToday = (d: Date): WorkDayResult => (d.getDate() === 15 ? 'half' : true);
-    const before = calcEarned(baseWork(), new Date(2026, 6, 15, 8, 0, 0), halfToday);
+    const before = calcEarned(baseWork(), new Date(2026, 6, 15, 10, 0, 0), halfToday);
     const after = calcEarned(baseWork(), new Date(2026, 6, 15, 20, 0, 0), halfToday);
-    const hr244 = 20000 / 244; // 30 整日*8 + 1 半日*4 = 244
-    approx(after - before, hr244 * 8 * 0.5); // 半天封顶 = 时薪 * 工时 * 0.5
+    const hr183 = 20000 / 183; // 30 整日×6 + 1 半日×3 = 183
+    approx(after - before, hr183 * 6 * 0.5); // 半天封顶 = 时薪 * 工时 * 0.5
   });
 
   it('月初 1 日下班后：仅今日满额', () => {
@@ -261,24 +261,24 @@ describe('formatMoney', () => {
 // ==================== calcMonthWorkDays ====================
 
 describe('calcMonthWorkDays', () => {
-  it('always → { days: dim, hours: dim*24 }（2026-07 → 31 / 744）', () => {
+  it('always 模式也按工作日统计（仅薪资计算不同，工时统计不变）2026-07 → 23 / 184', () => {
     const r = calcMonthWorkDays(baseWork({ mode: 'always' }), 2026, 6);
-    assert.equal(r.days, 31);
-    assert.equal(r.hours, 744);
+    assert.equal(r.days, 23);
+    assert.equal(r.hours, 138);
   });
-  it('always → 2 月（2026-02，28 天 → 28 / 672）', () => {
+  it('always 模式 2 月也按工作日统计（含春节放假）', () => {
     const r = calcMonthWorkDays(baseWork({ mode: 'always' }), 2026, 1);
-    assert.equal(r.days, 28);
-    assert.equal(r.hours, 28 * 24);
+    assert.equal(r.days, 16);
+    assert.equal(r.hours, 96);
   });
-  it('work + allTrue stub → days=31, hours=248', () => {
+  it('work + allTrue stub → days=31, hours=186', () => {
     const r = calcMonthWorkDays(baseWork(), 2026, 6, allTrue);
     assert.equal(r.days, 31);
-    approx(r.hours, 248);
+    approx(r.hours, 186);
   });
-  it('work + 真实数据（2026-07 无节假日）→ hours === days*8 且 days>20', () => {
+  it('work + 真实数据（2026-07 无节假日）→ hours === days*6 且 days>20', () => {
     const r = calcMonthWorkDays(baseWork(), 2026, 6);
-    approx(r.hours, r.days * 8);
+    approx(r.hours, r.days * 6);
     assert.ok(r.days > 20 && r.days < 24, `实际 days=${r.days}`);
   });
 });
@@ -391,8 +391,8 @@ describe('workdays 接入 + workdayAdjustment 开关（节假日固定不可编�
     const rDisabled = calcMonthWorkDays(disabledConfig, 2026, 6);
     assert.equal(rEnabled.days, 24, '启用调休：24 个工作日');
     assert.equal(rDisabled.days, 23, '禁用调休：23 个工作日（07-04 视为周末）');
-    assert.equal(rEnabled.hours, 24 * 8);
-    assert.equal(rDisabled.hours, 23 * 8);
+    assert.equal(rEnabled.hours, 24 * 6);
+    assert.equal(rDisabled.hours, 23 * 6);
   });
   it('同日同时出现在 HOLIDAYS 和 workdays → 节假日永远优先', () => {
     const both: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-02-17': { name: '冲突的调休' } };
