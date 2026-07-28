@@ -1,6 +1,6 @@
 /**
  * 薪资计算核心 —— 从原始 index.html 提取的纯逻辑
- * 包含 2024-2026 年中国法定节假日与调休
+ * 包含 2026 年中国法定节假日与调休
  *
  * 本文件**零 vscode 依赖**，可被扩展主进程与单元测试直接复用。
  *
@@ -72,7 +72,7 @@ export function mergeDayMarks(
 
 type YearGroupedData = Record<string, Record<string, DayMark>>;
 
-/** 把 { "2024": { "2024-01-01": {...} }, ... } 展平为 { "2024-01-01": {...}, ... } */
+/** 把 { "2026": { "2026-01-01": {...} }, ... } 展平为 { "2026-01-01": {...}, ... } */
 function flatten(data: YearGroupedData): Record<string, DayMark> {
   return Object.assign({}, ...Object.values(data)) as Record<string, DayMark>;
 }
