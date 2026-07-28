@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
 import {
   getConfig,
   calcEarned,
@@ -25,12 +23,8 @@ let timer: ReturnType<typeof setInterval> | null = null;
 let isVisible = true;
 /** 输出通道用于调试 */
 let outputChannel: vscode.OutputChannel;
-/** 当前活动的 WebView 面板 */
-let currentPanel: vscode.WebviewPanel | undefined;
 
 // ==================== 模块级缓存 ====================
-/** index.html 内容缓存（extensionUri 不变，读一次即可复用，省 I/O） */
-let cachedHtml: string | undefined;
 /** 当月工作日统计缓存，按「年月 + 影响统计的配置」为 key */
 let cachedStats: { key: string; days: number; hours: number } | undefined;
 /** 上次写入状态栏的文本，用于去重，避免无谓的 UI 刷新 */
@@ -52,19 +46,12 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Left,
     100
   );
-  // 状态栏点击 = 打开设置（WebView 时钟面板通过命令面板 / alt+shift+d 打开）
+  // 状态栏点击 = 打开设置
   statusBarItem.command = 'salaryClock.showSettings';
   statusBarItem.tooltip = '点击打开薪资时钟设置 ⚙️';
   context.subscriptions.push(statusBarItem);
 
   startTicking();
-
-  // 命令：打开完整时钟面板（WebView）
-  context.subscriptions.push(
-    vscode.commands.registerCommand('salaryClock.openClock', () => {
-      openClockPanel(context);
-    })
-  );
 
   // 命令：打开设置
   context.subscriptions.push(
@@ -112,10 +99,6 @@ export function activate(context: vscode.ExtensionContext) {
         // 配置变了：统计缓存失效，重启 ticking（间隔可能变了）
         cachedStats = undefined;
         startTicking();
-        // 如果有活动的 WebView 面板，同步配置过去
-        if (currentPanel) {
-          sendConfigToWebview(currentPanel);
-        }
       }
     })
   );
@@ -131,100 +114,6 @@ function warnIfHolidayDataStale() {
     const msg = `薪资时钟：节假日/调休数据仅覆盖 ${minYear}-${maxYear} 年，当前 ${nowYear} 年数据缺失，工作日判断将退化为「仅按周末」，计薪可能不准。`;
     console.warn(msg);
     vscode.window.showWarningMessage(msg);
-  }
-}
-
-// ==================== WebView 时钟面板 ====================
-
-/** 读取并缓存 index.html；读取失败返回 undefined 并提示用户 */
-function loadPanelHtml(context: vscode.ExtensionContext): string | undefined {
-  if (cachedHtml !== undefined) return cachedHtml;
-  try {
-    const htmlPath = path.join(context.extensionUri.fsPath, 'web', 'index.html');
-    cachedHtml = fs.readFileSync(htmlPath, 'utf-8');
-    return cachedHtml;
-  } catch (err) {
-    vscode.window.showErrorMessage(`薪资时钟：无法加载时钟面板资源（${String(err)}）`);
-    return undefined;
-  }
-}
-
-function openClockPanel(context: vscode.ExtensionContext) {
-  // 如果已有面板，先关闭旧的
-  if (currentPanel) {
-    currentPanel.dispose();
-  }
-
-  const panel = vscode.window.createWebviewPanel(
-    'salaryClock',
-    '哄我上班 😽',
-    vscode.ViewColumn.One,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(context.extensionUri, 'web'),
-      ],
-    }
-  );
-
-  currentPanel = panel;
-
-  // 读取 index.html（带缓存与错误兜底）
-  const html = loadPanelHtml(context);
-  panel.webview.html = html ?? '<h1>无法加载时钟面板资源</h1>';
-
-  // 兜底：短延迟后发送配置（句柄保存，dispose 时清理）
-  const readyTimer = setTimeout(() => {
-    sendConfigToWebview(panel);
-  }, 500);
-
-  // 面板关闭时清理引用与定时器
-  panel.onDidDispose(() => {
-    if (currentPanel === panel) currentPanel = undefined;
-    clearTimeout(readyTimer);
-  });
-
-  // 监听 webview 就绪消息
-  panel.webview.onDidReceiveMessage((message) => {
-    if (message.type === 'ready') {
-      sendConfigToWebview(panel);
-    }
-  });
-
-  // 当面板重新变为可见时也发送配置
-  panel.onDidChangeViewState((e) => {
-    if (e.webviewPanel.visible) {
-      sendConfigToWebview(panel);
-    }
-  });
-}
-
-function sendConfigToWebview(panel: vscode.WebviewPanel) {
-  // 面板已被替换/关闭则直接跳过，避免向已 dispose 的 webview 投递消息
-  if (currentPanel !== panel) return;
-  try {
-    const config = getConfig();
-    const theme = vscode.workspace.getConfiguration('salaryClock').get<string>('Atheme', 'aurora');
-
-    panel.webview.postMessage({
-      type: 'config',
-      monthlySalary: config.monthlySalary,
-      startTime: config.startTime,
-      endTime: config.endTime,
-      lunchDurationMin: config.lunchDurationMin,
-      lunchStart: config.lunchStart,
-      mode: config.mode,
-      decimalPlaces: config.decimalPlaces,
-      theme,
-      // 节假日内置固定不暴露编辑；调休 = 内置 + 用户配置合并
-      holidays: HOLIDAYS,
-      workdays: config.workdays ?? {},
-      workdayAdjustment: config.workdayAdjustment ?? true,
-    });
-  } catch (err) {
-    // 面板可能已在投递前 dispose；静默忽略即可
-    console.warn('薪资时钟：向面板发送配置失败', err);
   }
 }
 
@@ -318,7 +207,7 @@ function updateDisplay() {
       ``,
       `**本月** ${monthBar} **${(monthRatio * 100).toFixed(2)}%**  ${monthHoursStr}`,
       ``,
-      `⚙️ 点击打开设置 · Alt+Shift+D 打开时钟面板`,
+      `⚙️ 点击打开设置`,
     ].join('\n'),
     true,
   );
@@ -364,10 +253,6 @@ export function deactivate() {
   }
   if (statusBarItem) {
     statusBarItem.dispose();
-  }
-  if (currentPanel) {
-    currentPanel.dispose();
-    currentPanel = undefined;
   }
 }
 

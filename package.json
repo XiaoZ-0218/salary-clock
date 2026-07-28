@@ -26,11 +26,6 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "files": [
-    "out",
-    "img",
-    "web"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -43,11 +38,6 @@
         "command": "salaryClock.toggleDisplay",
         "title": "薪资时钟: 切换状态栏显示",
         "icon": "$(eye)"
-      },
-      {
-        "command": "salaryClock.openClock",
-        "title": "薪资时钟: 打开时钟面板",
-        "icon": "$(watch)"
       },
       {
         "command": "salaryClock.debug",
@@ -65,14 +55,7 @@
         "icon": "$(trash)"
       }
     ],
-    "keybindings": [
-      {
-        "command": "salaryClock.openClock",
-        "key": "alt+shift+d",
-        "mac": "alt+shift+d",
-        "when": "true"
-      }
-    ],
+    "keybindings": [],
     "configuration": {
       "title": "薪资时钟",
       "properties": {
@@ -133,31 +116,6 @@
           "type": "boolean",
           "default": false,
           "description": "在状态栏上班时间展示工作进度百分比（小数位数复用 decimalPlaces 设置）"
-        },
-        "salaryClock.Atheme": {
-          "type": "string",
-          "enum": [
-            "aurora",
-            "cyber",
-            "warm",
-            "ocean",
-            "mono",
-            "forest",
-            "ledger",
-            "arcade"
-          ],
-          "enumDescriptions": [
-            "极光舞台",
-            "霓虹终端",
-            "樱桃汽水",
-            "深海声呐",
-            "黑白杂志",
-            "松林晨雾",
-            "黑金账本",
-            "像素街机"
-          ],
-          "default": "aurora",
-          "description": "时钟面板主题样式"
         },
         "salaryClock.Badjustment": {
           "type": "boolean",
