@@ -21,5 +21,5 @@ module.exports = {
     '@typescript-eslint/no-inferrable-types': 'off',
     'no-constant-condition': ['error', { checkLoops: false }],
   },
-  ignorePatterns: ['out/**', 'node_modules/**', '*.js', '*.cjs', 'web/**'],
+  ignorePatterns: ['out/**', 'node_modules/**', '*.js', '*.cjs'],
 };

@@ -1,14 +1,9 @@
 # ==================== 运行时/依赖 ====================
 node_modules/
-jspm_packages/
 .npm/
-.yarn/
 
 # ==================== 构建产物 ====================
 out/
-out-test/
-dist/
-build/
 *.tsbuildinfo
 
 # ==================== VS Code 扩展打包 ====================
@@ -19,15 +14,10 @@ build/
 
 # ==================== 测试/覆盖率 ====================
 coverage/
-.nyc_output/
-*.lcov
 
 # ==================== 日志 ====================
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 
 # ==================== 环境/本地配置 ====================
 .env
@@ -49,14 +39,5 @@ Thumbs.db
 
 # ==================== 缓存 ====================
 .cache/
-.parcel-cache/
 .eslintcache
 .tsx-cache/
-
-# ==================== 协作优化中间产物（合并后无价值） ====================
-FIX-*.md
-INTEGRATION-REPORT.md
-REVIEW-REPORT*.md
-REVIEW-*.md
-review-*.md
-OPTIMIZATION-*.md

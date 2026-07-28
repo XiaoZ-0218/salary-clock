@@ -55,7 +55,6 @@
         "icon": "$(trash)"
       }
     ],
-    "keybindings": [],
     "configuration": {
       "title": "薪资时钟",
       "properties": {
