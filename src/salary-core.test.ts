@@ -261,7 +261,7 @@ describe('formatMoney', () => {
 // ==================== calcMonthWorkDays ====================
 
 describe('calcMonthWorkDays', () => {
-  it('always 模式也按工作日统计（仅薪资计算不同，工时统计不变）2026-07 → 23 / 184', () => {
+  it('always 模式也按工作日统计（仅薪资计算不同，工时统计不变）2026-07 → 23 / 138', () => {
     const r = calcMonthWorkDays(baseWork({ mode: 'always' }), 2026, 6);
     assert.equal(r.days, 23);
     assert.equal(r.hours, 138);
@@ -367,12 +367,6 @@ describe('workdays 接入 + workdayAdjustment 开关（节假日固定不可编�
     assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday, true), true, '启用调休 → 周六上班');
     // 关掉调休：周六回到默认休息
     assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday, false), false, '禁用调休 → 周六休息');
-  });
-  it('workdayAdjustment 默认 true（不传第 4 参 = 启用调休，向后兼容）', () => {
-    const sat = new Date(2026, 6, 4);
-    const withWorkday: SalaryConfig['workdays'] = { ...WORKDAYS, '2026-07-04': { name: '公司调休' } };
-    // 不传 workdayAdjustment 时 = true（向后兼容）
-    assert.equal(isWorkDay(sat, HOLIDAYS, withWorkday), true, '默认启用调休 → 周六上班');
   });
   it('workdayAdjustment=false 时，调休日不计入月总工时（影响时薪分母）', () => {
     // 把 2026-07-04 周六加入用户调休

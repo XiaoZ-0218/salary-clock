@@ -191,24 +191,7 @@ export function calcMonthWorkDays(
 }
 
 /**
- * 单一来源：给定分钟数是否处于「正在计薪」的工作分钟。
- * 用于 isWorkingTime 与状态展示，保证午休判断与 calcEarned 完全一致。
- */
-export function isWorkingMinute(
-  nowMin: number,
-  workStart: number,
-  workEnd: number,
-  lunchStart: number,
-  lunchEnd: number,
-): boolean {
-  if (nowMin < workStart || nowMin >= workEnd) return false;
-  if (lunchEnd > lunchStart && nowMin >= lunchStart && nowMin < lunchEnd) return false;
-  return true;
-}
-
-/**
  * 截至 nowMin，今天已计薪的分钟数（扣除午休）。
- * 与 isWorkingMinute 共用同一套 work/lunch 边界，两者判断天然一致。
  */
 function workedMinutesSoFar(
   nowMin: number,

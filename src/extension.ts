@@ -212,7 +212,7 @@ function updateDisplay() {
     true,
   );
 
-  // 节流 tooltip 更新：距离上次更新不足 1 秒则跳过，减少抖动
+  // 节流 tooltip 更新：距离上次更新不足 30 秒则跳过，减少抖动
   const nowMs = Date.now();
   if (nowMs - lastTooltipUpdate >= TOOLTIP_THROTTLE_MS) {
     statusBarItem.tooltip = md;
@@ -251,9 +251,7 @@ export function deactivate() {
     clearInterval(timer);
     timer = null;
   }
-  if (statusBarItem) {
-    statusBarItem.dispose();
-  }
+  // statusBarItem 已在 activate 时推入 context.subscriptions，停用时由 VS Code 自动 dispose
 }
 
 // ==================== 调试 ====================
